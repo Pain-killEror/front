@@ -23,9 +23,9 @@ async function initDashboardDispatcher() {
         currentUser = await request('/users/me');
 
         // 2. Выполняем общие для всех ролей действия:
-        //  - Устанавливаем имя в шапке
-        //  - Назначаем обработчик на кнопку "Выйти"
+        // - Устанавливаем имя в шапке
         document.getElementById('user-fullname').textContent = currentUser.fullName;
+        // - Назначаем обработчик на кнопку "Выйти"
         document.getElementById('logout-button').addEventListener('click', logout);
 
         // 3. В зависимости от роли, загружаем соответствующий скрипт
@@ -45,16 +45,20 @@ async function initDashboardDispatcher() {
                 });
                 break;
 
-            // =================================================================
-            // == ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем обработку для сотрудника деканата ==
-            // =================================================================
             case 'DEAN_STAFF':
                 // Загружаем скрипт для сотрудника деканата
                 loadScript('js/dean-dashboard.js', () => {
                     initDeanDashboard(); // Эту функцию мы создадим в следующем файле
                 });
                 break;
-            // =================================================================
+            
+            // ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем обработку для преподавателя
+            case 'TEACHER':
+                // Загружаем скрипт для преподавателя
+                loadScript('js/teacher-dashboard.js', () => {
+                    initTeacherDashboard(); // Эту функцию мы создадим в следующем файле
+                });
+                break;
 
             default:
                 document.getElementById('dashboard-content').innerHTML =

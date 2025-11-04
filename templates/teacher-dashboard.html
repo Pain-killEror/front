@@ -1,0 +1,96 @@
+<!-- templates/teacher-dashboard.html -->
+
+<!-- Сетка для размещения виджетов -->
+<div id="dashboard-grid-teacher" class="dashboard-grid-teacher">
+
+    <!-- Виджет 1: Успеваемость моих студентов (таблица) -->
+    <div id="widget-student-performance" class="widget full-width">
+        <h3>Успеваемость моих студентов</h3>
+        <div class="table-wrapper">
+            <table id="performance-table-teacher">
+                <thead>
+                    <tr>
+                        <th>ID Студента</th>
+                        <th>ФИО</th>
+                        <th>Группа</th>
+                        <th>Средний балл</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Сюда JS вставит строки с данными -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Виджет 2: Последние добавленные достижения -->
+    <div id="widget-latest-achievements" class="widget">
+        <h3>Последние добавленные достижения</h3>
+        <div class="widget-content-placeholder">
+            <!-- Сюда JS вставит список -->
+        </div>
+    </div>
+
+    <!-- Виджет 3: Сравнительный анализ групп (гистограмма) -->
+    <div id="widget-group-comparison-teacher" class="widget">
+        <h3>Сравнительный анализ групп</h3>
+        <div class="widget-content-placeholder">
+            <!-- Сюда JS вставит canvas с графиком -->
+        </div>
+    </div>
+
+</div>
+
+<!-- Стили, специфичные для этой панели -->
+<style>
+    .dashboard-grid-teacher {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .widget.full-width {
+        grid-column: 1 / -1; /* Растягиваем на всю ширину */
+    }
+
+    .table-wrapper {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    #performance-table-teacher, #group-comparison-table-teacher {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    #performance-table-teacher th, #performance-table-teacher td,
+    #group-comparison-table-teacher th, #group-comparison-table-teacher td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    #performance-table-teacher th, #group-comparison-table-teacher th {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+    }
+    
+    /* Стили для списка достижений */
+    .achievement-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .achievement-list li {
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .achievement-list li:last-child {
+        border-bottom: none;
+    }
+    .achievement-info {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+</style>
