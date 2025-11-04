@@ -1,0 +1,281 @@
+/* dashboard.css */
+.dashboard-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+    z-index: 1000;
+}
+
+.dashboard-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.user-info span {
+    margin-right: 1rem;
+    font-weight: 500;
+}
+
+#logout-button {
+    padding: 0.5rem 1rem;
+    width: auto;
+    background-color: #dc3545;
+    color: white;
+}
+
+#logout-button:hover {
+    background-color: #c82333;
+}
+
+main#dashboard-content {
+    padding: 8rem 2rem 2rem 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.dashboard-filters {
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-filters select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 1rem;
+}
+
+.dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+    gap: 1.5rem;
+}
+
+.charts-grid {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+#breakdown-chart-container {
+    
+    height: 400px /* Важное правило для flex, чтобы предотвратить переполнение */
+        
+}
+
+#dynamics-chart-container {
+    flex: 2; /* Занимает 2 части доступного пространства */
+    min-width: 0; /* Важное правило для flex, чтобы предотвратить переполнение */
+}
+
+
+.chart-container {
+    position: relative;
+}
+
+.chart-container canvas {
+    flex-grow: 1; /* <-- САМОЕ ГЛАВНОЕ ИЗМЕНЕНИЕ */
+    
+    max-height: 500px; /* Задаем минимальную высоту, чтобы он не схлопывался */
+    margin-top: 1.5rem;
+}
+
+
+.kpi-card {
+    text-align: center;
+}
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #007bff;
+    margin: 0;
+}
+
+.kpi-value.negative {
+    color: #dc3545;
+}
+
+
+
+
+
+
+.table-wrapper {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#ranking-table th, #ranking-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+#ranking-table th {
+    background-color: #f8f9fa;
+    position: sticky;
+    top: 0;
+}
+
+#ranking-table tbody tr.is-me {
+    background-color: #d1ecf1;
+    font-weight: bold;
+    color: #0c5460;
+}
+
+.total-score-card .kpi-value {
+    margin-top: 1rem;
+}
+
+.formula-container {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-align: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem; /* Немного увеличим боковые отступы */
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.formula-text span, .formula-values span {
+    white-space: nowrap;
+}
+
+.formula-text, .formula-values {
+    display: flex; /* Используем flexbox для выравнивания */
+    justify-content: space-around; /* Равномерно распределяем элементы */
+    align-items: center;
+}
+
+.formula-values {
+    font-weight: bold;
+    font-size: 1.1rem; /* Чуть увеличим шрифт цифр */
+    color: #333;
+    margin-top: 0.5rem;
+}
+
+.kpi-sub-value {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+.absence-card {
+    text-align: left;
+}
+
+.absence-details {
+   margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.absence-value {
+    font-weight: bold;
+    white-space: nowrap; /* Запрещаем перенос для часов */
+    padding-left: 0.5rem; /* Добавляем небольшой отступ */
+}
+
+
+
+.negative-value {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.skeleton {
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+.skeleton::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 150%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: loading 1.5s infinite;
+}
+@keyframes loading {
+    0% { left: -150%; }
+    100% { left: 150%; }
+}
+
+.widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.widget-header h3 {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+.filter-toggle-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.9rem;
+    background-color: #6c757d;
+    color: white;
+}
+.widget-filters {
+    overflow: hidden;
+    max-height: 0; /* Высота равна нулю */
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0px;
+    transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out, border 0.4s ease-in-out;
+}
+
+/* Затем мы описываем, как она должна выглядеть, когда у нее ПОЯВЛЯЕТСЯ класс .open */
+.widget-filters.open {
+    max-height: 500px; /* Высота становится 500px */
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-width: 1px;
+}
+.filter-group {
+    margin-bottom: 1.5rem;
+}
+.filter-group:last-child {
+    margin-bottom: 0;
+}
+.filter-group h4 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+.filter-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+.filter-group select {
+    width: 100%;
+    padding: 0.5rem;
+}
+#apply-dynamics-filters-btn {
+    width: 100%;
+    margin-top: 1rem;
+    background-color: #28a745;
+    color: white;
+}
