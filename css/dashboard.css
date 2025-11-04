@@ -279,3 +279,96 @@ main#dashboard-content {
     background-color: #28a745;
     color: white;
 }
+
+
+/* === Стили для личного кабинета (добавить в конец dashboard.css) === */
+
+.profile-btn {
+    background-color: #17a2b8;
+    color: white;
+    margin-right: 1rem;
+    padding: 0.5rem 1rem;
+    width: auto;
+}
+
+.profile-btn:hover {
+    background-color: #138496;
+}
+
+/* Оверлей для модального окна */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+/* Содержимое модального окна */
+.modal-content {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #888;
+}
+
+.profile-details-grid {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 1rem;
+}
+
+.profile-details-grid strong {
+    font-weight: 600;
+    color: #555;
+}
+
+/* === Стили для футера модального окна (добавить в конец dashboard.css) === */
+
+.modal-footer {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end; /* Кнопка будет справа */
+}
+
+/* Переопределяем стили для кнопки выхода, когда она в модальном окне */
+.modal-footer #logout-button {
+    background-color: #dc3545;
+    color: white;
+    padding: 0.5rem 1rem;
+    width: auto;
+}
+
+.modal-footer #logout-button:hover {
+    background-color: #c82333;
+}

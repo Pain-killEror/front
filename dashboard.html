@@ -1,5 +1,3 @@
-<!--dashboard.html-->
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -8,31 +6,42 @@
     <title>Главная панель</title>
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/admin-dashboard.css">
+    <!-- Дополнительные стили могут подключаться динамически -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <!-- Этот блок остается без изменений. Он общий для всех ролей. -->
-    <header class="dashboard-header">
-        <h1>Главная панель</h1>
-        <div class="user-info">
-            <span id="user-fullname"></span>
-            <button id="logout-button">Выйти</button>
+
+<header class="dashboard-header">
+    <h1>Главная панель</h1>
+    <div class="user-info">
+        <span id="user-fullname"></span>
+        <button id="profile-button" class="profile-btn">Личный кабинет</button>
+        <!-- ИЗМЕНЕНИЕ 1: Кнопка "Выйти" удалена отсюда -->
+    </div>
+</header>
+
+<main id="dashboard-content">
+    <!-- Сюда будет загружаться содержимое -->
+</main>
+
+<div id="profile-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Личный кабинет</h2>
+            <button id="close-modal-btn" class="close-btn">&times;</button>
         </div>
-    </header>
+        <div id="profile-details" class="modal-body">
+            <!-- Сюда JS будет вставлять информацию о пользователе -->
+        </div>
+        <!-- ИЗМЕНЕНИЕ 2: Добавляем футер модального окна с кнопкой "Выйти" -->
+        <div class="modal-footer">
+            <button id="logout-button">Выйти из аккаунта</button>
+        </div>
+    </div>
+</div>
 
-    <!-- 
-        ГЛАВНОЕ ИЗМЕНЕНИЕ: 
-        Содержимое этого тега <main> теперь пустое. 
-        JavaScript будет сам заполнять его нужным HTML-кодом 
-        в зависимости от роли пользователя (студент или администратор).
-    -->
-    <main id="dashboard-content">
-        <!-- Сюда будет загружаться содержимое -->
-    </main>
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
 
-    <!-- Скрипты остаются без изменений. Они нужны для работы всей логики. -->
-    <script src="js/api.js"></script>
-    <script src="js/dashboard.js"></script>
 </body>
 </html>
