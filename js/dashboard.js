@@ -3,7 +3,7 @@
 // нужный скрипт.
 
 // Глобальная переменная для хранения информации о пользователе,
-// чтобы к ней могли обращаться другие скрипты (например, student-dashboard.js)
+// чтобы к ней могли обращаться другие скрипты.
 let currentUser = null;
 
 // --- Главная точка входа ---
@@ -23,40 +23,39 @@ async function initDashboardDispatcher() {
         currentUser = await request('/users/me');
 
         // 2. Выполняем общие для всех ролей действия:
-        // - Устанавливаем имя в шапке
         document.getElementById('user-fullname').textContent = currentUser.fullName;
-        // - Назначаем обработчик на кнопку "Выйти"
         document.getElementById('logout-button').addEventListener('click', logout);
 
         // 3. В зависимости от роли, загружаем соответствующий скрипт
         switch (currentUser.roleName) {
             case 'STUDENT':
-                // Загружаем скрипт для студента и после загрузки вызываем его главную функцию
                 loadScript('js/student-dashboard.js', () => {
-                    initStudentDashboard(); // Эта функция находится в student-dashboard.js
+                    initStudentDashboard();
                 });
                 break;
 
             case 'ADMINISTRATOR':
-                // Загружаем скрипт для администратора и после загрузки
-                // вызываем его главную функцию
                 loadScript('js/admin-dashboard.js', () => {
-                    initAdminDashboard(); // Эта функция находится в admin-dashboard.js
+                    initAdminDashboard();
                 });
                 break;
 
             case 'DEAN_STAFF':
-                // Загружаем скрипт для сотрудника деканата
                 loadScript('js/dean-dashboard.js', () => {
-                    initDeanDashboard(); // Эту функцию мы создадим в следующем файле
+                    initDeanDashboard();
                 });
                 break;
             
-            // ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем обработку для преподавателя
             case 'TEACHER':
-                // Загружаем скрипт для преподавателя
                 loadScript('js/teacher-dashboard.js', () => {
-                    initTeacherDashboard(); // Эту функцию мы создадим в следующем файле
+                    initTeacherDashboard();
+                });
+                break;
+
+            // ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем обработку для ректората
+            case 'RECTORATE_STAFF':
+                loadScript('js/rectorate-dashboard.js', () => {
+                    initRectorateDashboard(); // Эту функцию мы создадим в следующем файле
                 });
                 break;
 
@@ -74,8 +73,8 @@ async function initDashboardDispatcher() {
 function loadScript(src, callback) {
     const script = document.createElement('script');
     script.src = src;
-    script.onload = callback; // Когда скрипт загрузится, выполнить callback-функцию
-    document.head.appendChild(script); // Добавляем скрипт на страницу
+    script.onload = callback;
+    document.head.appendChild(script);
 }
 
 function logout() {

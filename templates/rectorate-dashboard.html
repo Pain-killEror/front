@@ -1,0 +1,48 @@
+<!-- templates/rectorate-dashboard.html -->
+
+<!-- Сетка для размещения виджетов -->
+<div id="dashboard-grid-rectorate" class="dashboard-grid-rectorate">
+
+    <!-- Виджет 1: Сравнение успеваемости факультетов (гистограмма) -->
+    <div id="widget-faculty-performance" class="widget">
+        <h3>Сравнение успеваемости факультетов</h3>
+        <div class="widget-content-placeholder">
+            <!-- Сюда JS вставит canvas с графиком -->
+        </div>
+    </div>
+
+    <!-- Виджет 2: Распределение по формам обучения (круговая диаграмма) -->
+    <div id="widget-education-form" class="widget">
+        <h3>Распределение по формам обучения</h3>
+        <div class="widget-content-placeholder">
+            <!-- Сюда JS вставит canvas с графиком -->
+        </div>
+    </div>
+
+    <!-- Виджет 3: Обзор внеучебной деятельности (сложенная гистограмма) -->
+    <div id="widget-extracurricular-activity" class="widget full-width">
+        <h3>Обзор внеучебной деятельности по факультетам</h3>
+        <div class="widget-content-placeholder">
+            <!-- Сюда JS вставит canvas с графиком -->
+        </div>
+    </div>
+
+</div>
+
+<!-- Стили, специфичные для этой панели -->
+<style>
+    .dashboard-grid-rectorate {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .widget.full-width {
+        grid-column: 1 / -1; /* Растягиваем на всю ширину */
+    }
+
+    .widget-content-placeholder {
+        height: 400px; /* Задаем высоту для контейнеров графиков */
+        position: relative;
+    }
+</style>
