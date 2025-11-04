@@ -1,0 +1,27 @@
+<!--student-dashboard.html-->
+
+<!-- 
+    Это HTML-фрагмент, который описывает структуру панели студента.
+    Он будет загружен в <main id="dashboard-content"> на главной странице.
+-->
+
+<!-- Фильтр для сравнения, который нужен только студенту -->
+<div class="dashboard-controls">
+    <div class="dashboard-filters">
+        <label for="comparison-context">Сравнить с:</label>
+        <select id="comparison-context">
+            <option value="group" selected>Моей группой</option>
+            <option value="specialty_course">Моим курсом</option>
+            <option value="faculty">Всем факультетом</option>
+        </select>
+    </div>
+</div>
+
+<!-- 
+    Главный контейнер-сетка для всех виджетов студента.
+    Ваш JavaScript-код, как и раньше, будет заполнять этот блок
+    карточками, графиками и таблицей рейтинга.
+-->
+<div id="dashboard-grid" class="dashboard-grid">
+    <!-- Сюда JS будет вставлять виджеты студента -->
+</div>

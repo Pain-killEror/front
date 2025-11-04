@@ -1,3 +1,4 @@
+<!--dashboard.html-->
 
 <!DOCTYPE html>
 <html lang="ru">
@@ -7,9 +8,11 @@
     <title>Главная панель</title>
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/admin-dashboard.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- Этот блок остается без изменений. Он общий для всех ролей. -->
     <header class="dashboard-header">
         <h1>Главная панель</h1>
         <div class="user-info">
@@ -18,46 +21,17 @@
         </div>
     </header>
 
+    <!-- 
+        ГЛАВНОЕ ИЗМЕНЕНИЕ: 
+        Содержимое этого тега <main> теперь пустое. 
+        JavaScript будет сам заполнять его нужным HTML-кодом 
+        в зависимости от роли пользователя (студент или администратор).
+    -->
     <main id="dashboard-content">
-        <div class="dashboard-controls">
-            <div class="dashboard-filters">
-                <label for="comparison-context">Сравнить с:</label>
-                <select id="comparison-context">
-                    <option value="group" selected>Моей группой</option>
-                    <option value="specialty_course">Моим курсом</option>
-                    <option value="faculty">Всем факультетом</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- ПАНЕЛЬ ФИЛЬТРОВ (теперь здесь) -->
-        <div id="advanced-filters" class="widget-filters">
-            <div class="filter-group">
-                <h4>Линии на графике "Динамика":</h4>
-                <div id="dynamics-lines-filter">
-                    <label><input type="checkbox" name="lines" value="cumulativeTotal" checked> Накопительный итог</label>
-                    <label><input type="checkbox" name="lines" value="semesterTotal"> Балл за семестр</label>
-                    <label><input type="checkbox" name="lines" value="academic"> Средний балл (учеба)</label>
-                    <label><input type="checkbox" name="lines" value="achievements"> Достижения (накопительно)</label>
-                    <label><input type="checkbox" name="lines" value="absences"> Штрафы за пропуски (накопительно)</label>
-                </div>
-            </div>
-            <div class="filter-group">
-                <h4>Учет пропусков в динамике:</h4>
-                <select id="absence-type-filter">
-                    <option value="">Все</option>
-                    <option value="UNEXCUSED">Только неуважительные</option>
-                    <option value="EXCUSED">Только уважительные</option>
-                </select>
-            </div>
-            <button id="apply-filters-btn">Применить</button>
-        </div>
-
-        <div id="dashboard-grid" class="dashboard-grid">
-            <!-- Сюда JS будет вставлять виджеты -->
-        </div>
+        <!-- Сюда будет загружаться содержимое -->
     </main>
 
+    <!-- Скрипты остаются без изменений. Они нужны для работы всей логики. -->
     <script src="js/api.js"></script>
     <script src="js/dashboard.js"></script>
 </body>

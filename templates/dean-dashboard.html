@@ -1,0 +1,117 @@
+<!--
+Это HTML-фрагмент, который описывает структуру панели сотрудника деканата.
+Он будет загружен в <main id="dashboard-content"> на главной странице.
+-->
+
+<!-- Панель с фильтрами -->
+<div class="dashboard-filters">
+    <!-- Фильтры пока не заполняются данными, это можно добавить позже -->
+    <label for="faculty-filter">Факультет:</label>
+    <!-- ID факультета будет подставляться из данных пользователя, это поле можно сделать disabled -->
+    <select id="faculty-filter" disabled>
+        <option value="">-- Мой факультет --</option>
+    </select>
+
+    <label for="year-filter">Год набора:</label>
+    <select id="year-filter">
+        <option value="">-- Все года --</option>
+        <!-- Сюда можно динамически загружать года -->
+    </select>
+
+    <label for="group-filter">Группа:</label>
+    <select id="group-filter">
+        <option value="">-- Все группы --</option>
+        <!-- Сюда можно динамически загружать группы -->
+    </select>
+
+    <button id="apply-dean-filters-btn">Применить</button>
+</div>
+
+<!-- Сетка для размещения виджетов -->
+<div id="dashboard-grid-dean" class="dashboard-grid-dean">
+
+    <!-- Виджет 1: Общий рейтинг студентов (таблица) -->
+    <div id="widget-ranking-table" class="widget full-width">
+        <h3>Общий рейтинг студентов</h3>
+        <div class="table-wrapper">
+            <table id="ranking-table-dean">
+                <thead>
+                    <tr>
+                        <th>Место</th>
+                        <th>ФИО</th>
+                        <th>Группа</th>
+                        <th>Академ. балл</th>
+                        <th>Внеуч. балл</th>
+                        <th>Штраф (пропуски)</th>
+                        <th>Итоговый балл</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Сюда JS вставит строки с данными -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Виджет 2: Динамика среднего балла (линейный график) -->
+    <div id="widget-dynamics-chart" class="widget">
+        <h3>Динамика среднего балла</h3>
+        <!-- Сюда JS вставит canvas с графиком -->
+    </div>
+
+    <!-- Виджет 3: Распределение по успеваемости (гистограмма) -->
+    <div id="widget-distribution-chart" class="widget">
+        <h3>Распределение по успеваемости</h3>
+        <!-- Сюда JS вставит canvas с графиком -->
+    </div>
+
+    <!-- Виджет 4: Вклад в рейтинг (круговая диаграмма) -->
+    <div id="widget-contribution-chart" class="widget">
+        <h3>Вклад в рейтинг</h3>
+        <!-- Сюда JS вставит canvas с графиком -->
+    </div>
+
+</div>
+
+<!-- Стили, специфичные для этой панели -->
+<style>
+    .dashboard-grid-dean {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .widget.full-width {
+        grid-column: 1 / -1; /* Растягиваем на всю ширину */
+    }
+
+    .table-wrapper {
+        max-height: 500px; /* Увеличим высоту для таблицы */
+        overflow-y: auto;
+    }
+
+    #ranking-table-dean {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    #ranking-table-dean th,
+    #ranking-table-dean td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    #ranking-table-dean th {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+    }
+    
+    .skeleton {
+        background-color: #e0e0e0;
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+    }
+</style>

@@ -5,18 +5,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('register-form');
     const messageDiv = document.getElementById('message');
 
-    if (registerForm) {
+   if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(registerForm);
-            const data = Object.fromEntries(formData.entries());
-
-            try {
-                await request('/users/register', 'POST', data);
+            
+            // --- ЯВНЫЙ СБОР ДАННЫХ (Вместо Object.fromEntries(formData.entries())) ---
+            const data = {
+                login: registerForm.login.value,
+                password: registerForm.password.value,
+                fullName: registerForm.fullName.value,
+                email: registerForm.email.value,
+            };
+           try {
+                // Если api.js добавляет префикс /api, то запрос будет на /api/users/register
+                await request('/users/register', 'POST', data); 
+                
                 messageDiv.textContent = 'Вы успешно зарегистрированы! Ожидайте подтверждения от администратора.';
                 messageDiv.className = 'message success';
                 registerForm.reset();
-            } catch (error) {
+            }catch (error) {
                 // Ошибки уже обрабатываются в api.js
             }
         });
