@@ -4,34 +4,78 @@
 
 .admin-dashboard-grid {
     display: grid;
-    /* Устанавливаем гибкую сетку: колонки будут адаптироваться,
+    /* Устанавливаем гибкую сетку: колонки будут адаптироваться, 
        но не станут меньше 400px, пока есть место. */
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 1.5rem;
+    margin-top: 1rem;
 }
 
-/* Фикс для бесконечно растущих графиков:
-   Задаем фиксированную высоту контейнерам графиков. 
-   Если графикам не задать высоту, они будут бесконечно растягивать контейнер. */
+/* 
+   Фикс для бесконечно растущих графиков:
+   1. Задаем фиксированную высоту и relative позиционирование.
+   2. overflow: hidden обязательно, чтобы обрезать лишнее при перерисовке.
+*/
 #widget-role-stats,
 #widget-user-activity,
 #widget-system-status {
-    height: 400px; /* Фиксируем высоту виджета */
-    display: flex; /* Используем flex для управления дочерними элементами */
+    height: 400px !important; /* Жестко фиксируем высоту */
+    display: flex;
     flex-direction: column;
-    overflow: hidden; /* Обрезаем контент, если что-то выходит за рамки */
+    overflow: hidden;
+    position: relative;
 }
 
-/* Это критически важный стиль:
-   Он заставляет элемент <canvas> (график) растянуться 
-   на всю оставшуюся высоту внутри родительского flex-контейнера (400px).
+/* 
+   Это критически важный стиль для canvas (графиков) внутри flex-контейнеров.
+   min-height: 0 позволяет flex-элементу сжиматься меньше своего содержимого.
+   max-height: 100% запрещает вылезать за пределы родителя.
 */
-.widget canvas {
+#widget-role-stats canvas,
+#widget-user-activity canvas,
+#widget-system-status canvas {
     flex-grow: 1;
-    min-height: 0; 
+    min-height: 0;
+    max-height: 100% !important; /* Останавливает бесконечный рост */
+    width: 100% !important;      /* Заставляет график вписываться по ширине */
+    display: block;
 }
 
 /* Расширяем виджет "Последние действия" на всю ширину сетки */
 #widget-recent-actions {
     grid-column: 1 / -1;
+    /* Для списка логов тоже зададим высоту, чтобы страница не была километровой */
+    max-height: 500px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Стили для списка логов внутри виджета */
+#widget-recent-actions ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+#widget-recent-actions li {
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+}
+
+#widget-recent-actions li:last-child {
+    border-bottom: none;
+}
+
+/* Стилизация заголовков внутри виджетов для аккуратности */
+.widget h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 1.2rem;
+    color: #333;
+    flex-shrink: 0; /* Заголовок не должен сжиматься */
 }
