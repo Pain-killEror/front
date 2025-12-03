@@ -1,4 +1,4 @@
-// Файл: js/student-dashboard.js (ФИНАЛЬНАЯ ВЕРСИЯ - УБРАНЫ НАСТРОЙКИ ДЕТАЛИЗАЦИИ, БЛОКИРОВКА ТАБЛИЦЫ)
+// Файл: js/student-dashboard.js (ФИНАЛЬНАЯ ВЕРСИЯ - ПУСТО! ВМЕСТО ОШИБКИ)
 
 let breakdownChart = null;
 let dynamicsChart = null;
@@ -22,10 +22,9 @@ const GLOBAL_STYLES = `
     th.sortable.asc::after { content: ' ↑'; color: #333; }
     th.sortable.desc::after { content: ' ↓'; color: #333; }
 
-    /* Стиль блокировки для таблицы */
     .loading-overlay {
         opacity: 0.6;
-        pointer-events: none; /* Блокируем клики */
+        pointer-events: none;
         position: relative;
     }
     .loading-overlay::after {
@@ -40,6 +39,18 @@ const GLOBAL_STYLES = `
         font-weight: bold;
         z-index: 10;
     }
+    
+    .export-btn {
+        padding: 0.4rem 0.8rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        color: white;
+        margin-right: 5px;
+        font-size: 0.8rem;
+    }
+    .btn-pdf { background-color: #dc3545; }
+    .btn-excel { background-color: #28a745; }
 </style>`;
 
 // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
@@ -111,8 +122,6 @@ async function loadFullStudentDashboard() {
         if (analyticsData && analyticsData.widgets) {
             renderKpiCards(analyticsData.widgets, currentUser.id);
             
-            // ИЗМЕНЕНИЕ: Для breakdownChart берем данные напрямую (там теперь .breakdown внутри)
-            // Если сервер возвращает сложный объект BAR_CHART_COMPLEX, берем из него массив .breakdown
             const breakdownData = analyticsData.widgets.myScoreBreakdown.data.breakdown || analyticsData.widgets.myScoreBreakdown.data;
             renderBreakdownChart(breakdownData);
             
@@ -145,7 +154,6 @@ function renderKpiCards(widgets, studentId) {
     const rank = myRank && myRank.rank !== -1 ? myRank.rank : '?';
     const total = myRank ? myRank.total : '?';
 
-    // Данные берем из детального DTO рейтинга (там теперь есть реальные часы)
     const academicScore = studentRankingData ? studentRankingData.academicScore.toFixed(2) : '0.00';
     const extracurricularScore = studentRankingData ? studentRankingData.extracurricularScore.toFixed(2) : '0.00';
     const absencePenalty = studentRankingData ? studentRankingData.absencePenalty.toFixed(2) : '0.00';
@@ -190,13 +198,23 @@ function renderKpiCards(widgets, studentId) {
     `;
 }
 
-// === BREAKDOWN CHART (ИЗМЕНЕНИЕ: ПРОСТОЙ ГРАФИК БЕЗ НАСТРОЕК) ===
+// === BREAKDOWN CHART (PIE CHART - "ПУСТО!") ===
 
 function renderBreakdownChart(items) {
     const container = document.getElementById('breakdown-chart-container');
     if (!container) return;
 
-    // Просто заголовок и канвас
+    // ИЗМЕНЕНИЕ: Если данных нет, показываем текст "Пусто!"
+    if (!items || items.length === 0) {
+        container.innerHTML = `
+            <h3>Детализация баллов</h3>
+            <div style="${CHART_FIXED_HEIGHT_STYLE}; display: flex; justify-content: center; align-items: center; color: #888; font-size: 1.5rem;">
+                Пусто!
+            </div>
+        `;
+        return;
+    }
+
     container.innerHTML = `<h3>Детализация баллов</h3><div style="${CHART_FIXED_HEIGHT_STYLE}"><canvas></canvas></div>`;
     
     const canvas = container.querySelector('canvas');
@@ -204,25 +222,12 @@ function renderBreakdownChart(items) {
         breakdownChart.destroy();
     }
 
-    if (!items || items.length === 0) {
-        // Если данных нет, можно нарисовать пустой график или ничего не делать
-        return;
-    }
-
     const categoryTranslations = {
-        'ACADEMIC': 'Учеба',
-        'SCIENCE': 'Наука',
-        'SOCIAL': 'Общественная',
-        'SPORTS': 'Спорт',
-        'CULTURE': 'Культура'
+        'ACADEMIC': 'Учеба', 'SCIENCE': 'Наука', 'SOCIAL': 'Общественная', 'SPORTS': 'Спорт', 'CULTURE': 'Культура'
     };
     
     const categoryColors = {
-        'ACADEMIC': '#ffc107',
-        'SCIENCE': '#28a745',
-        'SOCIAL': '#007bff',
-        'SPORTS': '#17a2b8',
-        'CULTURE': '#dc3545'
+        'ACADEMIC': '#ffc107', 'SCIENCE': '#28a745', 'SOCIAL': '#007bff', 'SPORTS': '#17a2b8', 'CULTURE': '#dc3545'
     };
 
     breakdownChart = new Chart(canvas, {
@@ -242,10 +247,7 @@ function renderBreakdownChart(items) {
                 legend: {
                     position: 'right',
                     align: 'center',
-                    labels: {
-                        boxWidth: 20,
-                        padding: 20
-                    }
+                    labels: { boxWidth: 20, padding: 20 }
                 }
             }
         }
@@ -259,7 +261,6 @@ async function updateRankingListByFilter() {
     const context = document.getElementById('comparison-context').value;
     const semester = document.getElementById('ranking-semester-select').value;
     
-    // ИЗМЕНЕНИЕ: Блокировка таблицы
     container.classList.add('loading-overlay');
 
     const requestBody = {
@@ -285,7 +286,6 @@ async function updateRankingListByFilter() {
         console.error("Failed to update ranking list:", error);
         alert("Ошибка при обновлении");
     } finally {
-        // ИЗМЕНЕНИЕ: Снятие блокировки
         container.classList.remove('loading-overlay');
     }
 }
@@ -294,7 +294,6 @@ async function updateRankingData() {
     const container = document.getElementById('ranking-list-container');
     const context = document.getElementById('comparison-context').value;
     
-    // Блокировка
     container.classList.add('loading-overlay');
     const rankValueElement = document.getElementById('kpi-rank-value');
     if (rankValueElement) rankValueElement.textContent = '...';
@@ -324,9 +323,74 @@ async function updateRankingData() {
         console.error("Ошибка при обновлении рейтинга:", error);
         if (rankValueElement) rankValueElement.textContent = 'Ошибка';
     } finally {
-        // Снятие блокировки
         container.classList.remove('loading-overlay');
     }
+}
+
+// --- ФУНКЦИЯ ЭКСПОРТА (С ДИНАМИЧЕСКИМИ КОЛОНКАМИ) ---
+function exportReport(format) {
+    const context = document.getElementById('comparison-context').value;
+    const semesterSelect = document.getElementById('ranking-semester-select');
+    const semester = semesterSelect ? semesterSelect.value : '';
+    const studentId = currentUser.id;
+    const token = localStorage.getItem('authToken');
+
+    // 1. Собираем выбранные колонки
+    const checkboxes = document.querySelectorAll('#ranking-columns-filter input:checked');
+    let columns = Array.from(checkboxes).map(cb => cb.value);
+    
+    // Если ничего не выбрано (странно, но вдруг), берем дефолт
+    if (columns.length === 0) {
+        columns = ['academicScore', 'totalScore'];
+    }
+    const columnsStr = columns.join(',');
+
+    // 2. Блокируем кнопку
+    const btn = document.querySelector(`.export-btn.btn-${format}`);
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Загрузка...";
+        btn.style.opacity = "0.7";
+        btn.style.cursor = "wait";
+    }
+
+    // 3. Формируем URL
+    let url = `http://localhost:8080/api/analytics/export?format=${format}&studentId=${studentId}&context=${context}&columns=${columnsStr}`;
+    if (semester) {
+        url += `&semester=${semester}`;
+    }
+
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Export failed');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report_student_${studentId}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    })
+    .catch(error => {
+        console.error('Error exporting:', error);
+        alert('Ошибка при скачивании отчета');
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = format === 'pdf' ? 'PDF' : 'Excel';
+            btn.style.opacity = "1";
+            btn.style.cursor = "pointer";
+        }
+    });
 }
 
 function renderRankingList(dataWrapper, currentStudentId) {
@@ -342,6 +406,9 @@ function renderRankingList(dataWrapper, currentStudentId) {
             <div class="widget-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h3 style="margin: 0;">Рейтинг</h3>
                 <div style="display: flex; gap: 5px;">
+                    <button class="export-btn btn-pdf" onclick="exportReport('pdf')">PDF</button>
+                    <button class="export-btn btn-excel" onclick="exportReport('excel')">Excel</button>
+                    
                     <button id="toggle-ranking-filters-btn" class="filter-toggle-btn" style="margin-right: 10px;">Настроить</button>
                     <input type="number" id="rank-search-input" class="no-spin" placeholder="Найти ID" 
                            style="padding: 0.4rem; border: 1px solid #ddd; border-radius: 4px; width: 80px;">
@@ -352,9 +419,7 @@ function renderRankingList(dataWrapper, currentStudentId) {
             <div id="ranking-filters" class="widget-filters">
                 <div class="filter-group">
                     <h4>Семестр:</h4>
-                    <select id="ranking-semester-select" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="">Все семестры</option>
-                    </select>
+                    <select id="ranking-semester-select" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 4px;"></select>
                     <h4>Отображать столбцы:</h4>
                     <div id="ranking-columns-filter">
                         <label><input type="checkbox" name="cols" value="academicScore" checked> Академ. балл</label>
@@ -386,12 +451,12 @@ function renderRankingList(dataWrapper, currentStudentId) {
     }
 
     const select = document.getElementById('ranking-semester-select');
-    select.innerHTML = '<option value="">Все семестры</option>';
+    select.innerHTML = '<option value="">Накопительный итог (за все время)</option>';
     availableSemesters.forEach(sem => {
         const option = document.createElement('option');
         option.value = sem;
         option.textContent = `Семестр ${sem}`;
-        if (selectedSemester && sem == selectedSemester) option.selected = true;
+        if (sem == selectedSemester) option.selected = true;
         select.appendChild(option);
     });
 
@@ -493,7 +558,7 @@ function setupRankingSearch() {
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch(); });
 }
 
-// === DYNAMICS CHART ===
+// === DYNAMICS CHART (ОСТАВЛЕН КАК ЕСТЬ) ===
 
 async function updateDynamicsChart() {
     const container = document.getElementById('dynamics-chart-container');
@@ -524,7 +589,7 @@ async function updateDynamicsChart() {
 
         if (compareId && !hasCompareData) {
             if (errorMsg) {
-                errorMsg.textContent = `Студент с ID ${compareId} не найден или не имеет данных.`;
+                errorMsg.textContent = `Студент с ID ${compareId} не найден.`;
                 errorMsg.style.display = 'block';
             }
             if (canvas) canvas.style.opacity = '1';
