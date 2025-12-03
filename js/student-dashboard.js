@@ -1,4 +1,4 @@
-// Файл: js/student-dashboard.js (ФИНАЛЬНАЯ ВЕРСИЯ - СВОРАЧИВАНИЕ/РАЗВОРАЧИВАНИЕ)
+// Файл: js/student-dashboard.js (ФИНАЛЬНАЯ ВЕРСИЯ - ПОИСК В РЕЙТИНГЕ)
 
 let breakdownChart = null;
 let dynamicsChart = null;
@@ -6,16 +6,33 @@ let dynamicsChart = null;
 const WIDGET_AUTO_STYLE = 'height: auto; min-height: 450px; display: flex; flex-direction: column;';
 const CHART_FIXED_HEIGHT_STYLE = 'position: relative; height: 350px; width: 100%; overflow: hidden; margin-top: 1rem;';
 
+// Добавляем стили для поиска и подсветки прямо через JS
+const GLOBAL_STYLES = `
+<style>
+    /* Убираем стрелки у input number */
+    input.no-spin::-webkit-outer-spin-button,
+    input.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input.no-spin[type=number] { -moz-appearance: textfield; }
+    
+    /* Класс для подсветки найденной строки */
+    tr.search-highlight {
+        background-color: #fff3cd !important; /* Желтый цвет */
+        transition: background-color 0.5s ease;
+    }
+</style>`;
+
 async function initStudentDashboard() {
     try {
         const response = await fetch('templates/student-dashboard.html');
         if (!response.ok) throw new Error('Не удалось загрузить шаблон для студента');
         const templateHtml = await response.text();
 
-        document.getElementById('dashboard-content').innerHTML = templateHtml;
-        document.getElementById('comparison-context').addEventListener('change', loadStudentDashboardData);
+        // Вставляем стили и шаблон
+        document.getElementById('dashboard-content').innerHTML = GLOBAL_STYLES + templateHtml;
+        
+        document.getElementById('comparison-context').addEventListener('change', updateRankingData);
 
-        await loadStudentDashboardData();
+        await loadFullStudentDashboard();
     } catch (error) {
         console.error("Ошибка при инициализации панели студента:", error);
         document.getElementById('dashboard-content').innerHTML =
@@ -23,9 +40,10 @@ async function initStudentDashboard() {
     }
 }
 
-async function loadStudentDashboardData() {
+async function loadFullStudentDashboard() {
     const grid = document.getElementById('dashboard-grid');
     grid.innerHTML = getStudentSkeletons();
+    
     const context = document.getElementById('comparison-context').value;
     const requestBody = {
         filters: { 
@@ -35,9 +53,11 @@ async function loadStudentDashboardData() {
         },
         widgetIds: ['myScores', 'myRank', 'myScoreBreakdown', 'myRankDynamics', 'studentRankingList']
     };
+
     try {
         const analyticsData = await request('/analytics/query', 'POST', requestBody);
 
+        // ИЗМЕНЕНИЕ: Добавлен HTML для поиска в заголовке таблицы
         grid.innerHTML = `
             <div id="kpi-cards" class="kpi-grid"></div>
             <div id="charts-grid" class="charts-grid">
@@ -45,15 +65,26 @@ async function loadStudentDashboardData() {
                 <div class="widget chart-container" id="dynamics-chart-container" style="${WIDGET_AUTO_STYLE}"></div>
             </div>
             <div class="widget" id="ranking-list-container">
-                <h3>Рейтинг</h3>
+                <div class="widget-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Рейтинг</h3>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" id="rank-search-input" class="no-spin" placeholder="Найти ID" 
+                               style="padding: 0.4rem; border: 1px solid #ddd; border-radius: 4px; width: 100px;">
+                        <button id="rank-search-btn" style="padding: 0.4rem 0.8rem; background-color: #17a2b8; color: white; border: none; border-radius: 4px;">🔍</button>
+                    </div>
+                </div>
                 <div class="table-wrapper">
                     <table id="ranking-table">
-                        <thead><tr><th>Место</th><th>ID Студента (анонимно)</th><th>Итоговый балл</th></tr></thead>
+                        <thead><tr><th>Место</th><th>ID Студента</th><th>Итоговый балл</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
             </div>
         `;
+        
+        // Навешиваем обработчик поиска
+        setupRankingSearch();
+
         renderKpiCards(analyticsData.widgets, currentUser.id);
         renderBreakdownChart(analyticsData.widgets.myScoreBreakdown.data);
         renderDynamicsChart(analyticsData.widgets.myRankDynamics.data);
@@ -61,6 +92,91 @@ async function loadStudentDashboardData() {
     } catch (error) {
         console.error("Не удалось загрузить данные для панели студента:", error);
         grid.innerHTML = '<div class="widget"><p>Не удалось загрузить данные для дашборда.</p></div>';
+    }
+}
+
+// Логика поиска по таблице
+function setupRankingSearch() {
+    const btn = document.getElementById('rank-search-btn');
+    const input = document.getElementById('rank-search-input');
+
+    const performSearch = () => {
+        const searchId = input.value.trim();
+        if (!searchId) return;
+
+        const rows = document.querySelectorAll('#ranking-table tbody tr');
+        let found = false;
+
+        // Убираем старую подсветку
+        rows.forEach(row => row.classList.remove('search-highlight'));
+
+        for (const row of rows) {
+            // ID студента находится во второй ячейке (index 1)
+            const cellId = row.cells[1].textContent;
+            
+            if (cellId === searchId) {
+                found = true;
+                row.classList.add('search-highlight');
+                
+                // Скроллим к строке
+                const tableWrapper = document.querySelector('#ranking-list-container .table-wrapper');
+                if (tableWrapper) {
+                    const scrollTo = row.offsetTop - (tableWrapper.clientHeight / 2) + (row.clientHeight / 2);
+                    tableWrapper.scrollTo({
+                        top: scrollTo,
+                        behavior: 'smooth'
+                    });
+                }
+                break; // Нашли, останавливаемся
+            }
+        }
+
+        if (!found) {
+            alert(`Студент с ID ${searchId} не найден в этом списке.`);
+        }
+    };
+
+    btn.addEventListener('click', performSearch);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch();
+    });
+}
+
+async function updateRankingData() {
+    const context = document.getElementById('comparison-context').value;
+    
+    const rankValueElement = document.getElementById('kpi-rank-value');
+    if (rankValueElement) rankValueElement.textContent = '...';
+    
+    const tbody = document.querySelector('#ranking-table tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: #888;">Обновление данных...</td></tr>';
+
+    const requestBody = {
+        filters: { 
+            studentId: currentUser.id,
+            comparisonContext: context
+        },
+        widgetIds: ['myRank', 'studentRankingList']
+    };
+
+    try {
+        const analyticsData = await request('/analytics/query', 'POST', requestBody);
+        
+        if (rankValueElement && analyticsData.widgets.myRank) {
+            const myRank = analyticsData.widgets.myRank.data;
+            const rankText = (myRank && myRank.rank !== -1) ? myRank.rank : '?';
+            const totalText = myRank ? myRank.total : '?';
+            rankValueElement.textContent = `${rankText} / ${totalText}`;
+        }
+
+        if (analyticsData.widgets.studentRankingList) {
+            renderRankingList(analyticsData.widgets.studentRankingList.data, currentUser.id);
+        }
+
+    } catch (error) {
+        console.error("Ошибка при обновлении рейтинга:", error);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="3" style="color:red;">Ошибка обновления</td></tr>';
+        if (rankValueElement) rankValueElement.textContent = 'Ошибка';
     }
 }
 
@@ -85,9 +201,6 @@ function getStudentSkeletons() {
 
 // --- ФУНКЦИИ ОБНОВЛЕНИЯ И РЕНДЕРИНГА ---
 
-/**
- * Обновляет график. Возвращает true/false.
- */
 async function updateDynamicsChart() {
     const container = document.getElementById('dynamics-chart-container');
     const canvas = container.querySelector('canvas');
@@ -121,22 +234,21 @@ async function updateDynamicsChart() {
         const data = analyticsData.widgets.myRankDynamics.data;
         const hasCompareData = Object.keys(data).some(key => key.endsWith('_compare'));
 
-        // Проверка: если запрашивали сравнение, но данных нет
         if (compareId && !hasCompareData) {
             if (errorMsg) {
                 errorMsg.textContent = `Студент с ID ${compareId} не найден или не имеет данных.`;
                 errorMsg.style.display = 'block';
             }
             if (canvas) canvas.style.opacity = '1';
-            return false; // Ошибка
+            return false;
         }
 
         renderDynamicsChart(data);
-        return true; // Успех
+        return true;
     } catch (error) {
         console.error("Failed to update dynamics chart:", error);
         if (canvas) canvas.style.opacity = '1';
-        return false; // Ошибка сети
+        return false;
     }
 }
 
@@ -177,7 +289,7 @@ function renderKpiCards(widgets, studentId) {
         </div>
         <div class="widget kpi-card">
             <h3>Место в рейтинге</h3>
-            <p class="kpi-value">${rank} / ${total}</p>
+            <p class="kpi-value" id="kpi-rank-value">${rank} / ${total}</p>
         </div>
         <div class="widget kpi-card absence-card">
             <h3>Пропуски</h3>
@@ -259,20 +371,7 @@ function renderDynamicsChart(data) {
     const errorText = existingError ? existingError.textContent : '';
 
     if (!container.querySelector('.widget-header')) {
-        const noSpinStyle = `
-        <style>
-            input.no-spin::-webkit-outer-spin-button,
-            input.no-spin::-webkit-inner-spin-button {
-              -webkit-appearance: none;
-              margin: 0;
-            }
-            input.no-spin[type=number] {
-              -moz-appearance: textfield;
-            }
-        </style>`;
-
         container.innerHTML = `
-            ${noSpinStyle}
             <div class="widget-header">
                 <h3>Динамика моего рейтинга</h3>
                 <button id="toggle-dynamics-filters-btn" class="filter-toggle-btn">Настроить</button>
@@ -307,15 +406,12 @@ function renderDynamicsChart(data) {
             document.getElementById('dynamics-filters').classList.toggle('open');
         });
         
-        // --- ИЗМЕНЕНИЕ: Сворачиваем СРАЗУ, но если ошибка - РАЗВОРАЧИВАЕМ обратно ---
         document.getElementById('apply-dynamics-filters-btn').addEventListener('click', async () => {
             const filters = document.getElementById('dynamics-filters');
-            filters.classList.remove('open'); // Сворачиваем сразу (оптимистично)
-            
+            filters.classList.remove('open');
             const success = await updateDynamicsChart();
-            
             if (!success) {
-                filters.classList.add('open'); // Если ошибка - разворачиваем обратно
+                filters.classList.add('open');
             }
         });
 
@@ -427,4 +523,17 @@ function renderRankingList(data, currentStudentId) {
         `;
         tbody.appendChild(row);
     });
+
+    const tableWrapper = document.querySelector('#ranking-list-container .table-wrapper');
+    const myRow = tbody.querySelector('.is-me');
+    
+    if (tableWrapper && myRow) {
+        setTimeout(() => {
+            const scrollTo = myRow.offsetTop - (tableWrapper.clientHeight / 2) + (myRow.clientHeight / 2);
+            tableWrapper.scrollTo({
+                top: scrollTo,
+                behavior: 'smooth'
+            });
+        }, 100);
+    }
 }
