@@ -1,12 +1,13 @@
-// Файл: js/student-dashboard.js (ИСПРАВЛЕННАЯ ВЕРСИЯ - FIX FLICKERING)
+// Файл: js/student-dashboard.js (РУСИФИКАЦИЯ ДИАГРАММЫ)
 
 let breakdownChart = null;
 let dynamicsChart = null;
 
-// Стиль-обертка для canvas, чтобы остановить бесконечное растягивание
-const CHART_WRAPPER_STYLE = 'position: relative; flex-grow: 1; min-height: 0; width: 100%; overflow: hidden;';
-// Стиль для самого виджета, чтобы он имел фиксированную высоту
-const WIDGET_FIXED_STYLE = 'height: 450px; display: flex; flex-direction: column; overflow: hidden;';
+// Стиль для самого виджета
+const WIDGET_AUTO_STYLE = 'height: auto; min-height: 450px; display: flex; flex-direction: column;';
+
+// Стиль для обертки графика
+const CHART_FIXED_HEIGHT_STYLE = 'position: relative; height: 350px; width: 100%; overflow: hidden; margin-top: 1rem;';
 
 async function initStudentDashboard() {
     try {
@@ -40,12 +41,11 @@ async function loadStudentDashboardData() {
     try {
         const analyticsData = await request('/analytics/query', 'POST', requestBody);
 
-        // ИЗМЕНЕНИЕ: Добавлен style="${WIDGET_FIXED_STYLE}" к контейнерам графиков
         grid.innerHTML = `
             <div id="kpi-cards" class="kpi-grid"></div>
             <div id="charts-grid" class="charts-grid">
-                <div class="widget chart-container" id="breakdown-chart-container" style="${WIDGET_FIXED_STYLE}"></div>
-                <div class="widget chart-container" id="dynamics-chart-container" style="${WIDGET_FIXED_STYLE}"></div>
+                <div class="widget chart-container" id="breakdown-chart-container" style="${WIDGET_AUTO_STYLE}"></div>
+                <div class="widget chart-container" id="dynamics-chart-container" style="${WIDGET_AUTO_STYLE}"></div>
             </div>
             <div class="widget" id="ranking-list-container">
                 <h3>Рейтинг</h3>
@@ -171,17 +171,27 @@ function renderBreakdownChart(data) {
     const container = document.getElementById('breakdown-chart-container');
     if (!container) return;
     
-    // ИЗМЕНЕНИЕ: Используем CHART_WRAPPER_STYLE
-    container.innerHTML = `<h3>Детализация баллов</h3><div style="${CHART_WRAPPER_STYLE}"><canvas></canvas></div>`;
+    container.innerHTML = `<h3>Детализация баллов</h3><div style="${CHART_FIXED_HEIGHT_STYLE}"><canvas></canvas></div>`;
     
     const canvas = container.querySelector('canvas');
     if (breakdownChart) {
         breakdownChart.destroy();
     }
+
+    // ИЗМЕНЕНИЕ: Словарь переводов
+    const categoryTranslations = {
+        'ACADEMIC': 'Учеба',
+        'SCIENCE': 'Наука',
+        'SOCIAL': 'Общественная',
+        'SPORTS': 'Спорт',
+        'CULTURE': 'Культура'
+    };
+
     breakdownChart = new Chart(canvas, {
         type: 'pie',
         data: {
-            labels: data.map(item => item.category),
+            // ИЗМЕНЕНИЕ: Переводим метки перед показом
+            labels: data.map(item => categoryTranslations[item.category] || item.category),
             datasets: [{
                 data: data.map(item => item.totalPoints),
                 backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8'],
@@ -190,7 +200,7 @@ function renderBreakdownChart(data) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // Обязательно false
+            maintainAspectRatio: false, 
             plugins: {
                 legend: {
                     position: 'right',
@@ -215,7 +225,6 @@ function renderDynamicsChart(data) {
         checkedLines = new Set(Array.from(linesFilter.querySelectorAll('input:checked')).map(el => el.value));
     }
     
-    // ИЗМЕНЕНИЕ: Используем CHART_WRAPPER_STYLE для canvas
     if (!container.querySelector('.widget-header')) {
         container.innerHTML = `
             <div class="widget-header">
@@ -236,7 +245,7 @@ function renderDynamicsChart(data) {
                 </div>
                 <button id="apply-dynamics-filters-btn">Применить</button>
             </div>
-            <div style="${CHART_WRAPPER_STYLE}"><canvas></canvas></div>
+            <div style="${CHART_FIXED_HEIGHT_STYLE}"><canvas></canvas></div>
         `;
         
         document.getElementById('toggle-dynamics-filters-btn').addEventListener('click', () => {
@@ -295,7 +304,7 @@ function renderDynamicsChart(data) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // Обязательно false
+            maintainAspectRatio: false, 
             elements: { line: { borderWidth: 3 } },
             scales: {
                 y: { beginAtZero: true, grid: { color: '#e9ecef' } },
