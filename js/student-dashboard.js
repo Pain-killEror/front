@@ -1,4 +1,4 @@
-// Файл: js/student-dashboard.js (РУСИФИКАЦИЯ ДИАГРАММЫ)
+// Файл: js/student-dashboard.js (ИСПРАВЛЕННАЯ ВЕРСИЯ - DEFAULT SELECTION)
 
 let breakdownChart = null;
 let dynamicsChart = null;
@@ -93,7 +93,18 @@ async function updateDynamicsChart() {
     const canvas = container.querySelector('canvas');
     if (canvas) canvas.style.opacity = '0.5';
     
-    const lines = Array.from(document.querySelectorAll('#dynamics-lines-filter input:checked')).map(el => el.value);
+    // Получаем выбранные значения
+    let lines = Array.from(document.querySelectorAll('#dynamics-lines-filter input:checked')).map(el => el.value);
+
+    // --- ИЗМЕНЕНИЕ: Если ничего не выбрано, выбираем первую опцию (cumulativeTotal) ---
+    if (lines.length === 0) {
+        lines = ['cumulativeTotal'];
+        // Визуально ставим галочку обратно, чтобы пользователь видел, что произошло
+        const defaultCheckbox = document.querySelector('#dynamics-lines-filter input[value="cumulativeTotal"]');
+        if (defaultCheckbox) {
+            defaultCheckbox.checked = true;
+        }
+    }
 
     const requestBody = {
         filters: { 
@@ -178,7 +189,6 @@ function renderBreakdownChart(data) {
         breakdownChart.destroy();
     }
 
-    // ИЗМЕНЕНИЕ: Словарь переводов
     const categoryTranslations = {
         'ACADEMIC': 'Учеба',
         'SCIENCE': 'Наука',
@@ -190,7 +200,6 @@ function renderBreakdownChart(data) {
     breakdownChart = new Chart(canvas, {
         type: 'pie',
         data: {
-            // ИЗМЕНЕНИЕ: Переводим метки перед показом
             labels: data.map(item => categoryTranslations[item.category] || item.category),
             datasets: [{
                 data: data.map(item => item.totalPoints),
