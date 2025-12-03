@@ -1,12 +1,9 @@
-// Файл: js/student-dashboard.js (ИСПРАВЛЕННАЯ ВЕРСИЯ - DEFAULT SELECTION)
+// Файл: js/student-dashboard.js (ФИНАЛЬНАЯ ВЕРСИЯ - СВОРАЧИВАНИЕ/РАЗВОРАЧИВАНИЕ)
 
 let breakdownChart = null;
 let dynamicsChart = null;
 
-// Стиль для самого виджета
 const WIDGET_AUTO_STYLE = 'height: auto; min-height: 450px; display: flex; flex-direction: column;';
-
-// Стиль для обертки графика
 const CHART_FIXED_HEIGHT_STYLE = 'position: relative; height: 350px; width: 100%; overflow: hidden; margin-top: 1rem;';
 
 async function initStudentDashboard() {
@@ -88,37 +85,58 @@ function getStudentSkeletons() {
 
 // --- ФУНКЦИИ ОБНОВЛЕНИЯ И РЕНДЕРИНГА ---
 
+/**
+ * Обновляет график. Возвращает true/false.
+ */
 async function updateDynamicsChart() {
     const container = document.getElementById('dynamics-chart-container');
     const canvas = container.querySelector('canvas');
-    if (canvas) canvas.style.opacity = '0.5';
+    const errorMsg = document.getElementById('compare-error-msg');
     
-    // Получаем выбранные значения
+    if (canvas) canvas.style.opacity = '0.5';
+    if (errorMsg) errorMsg.style.display = 'none';
+    
     let lines = Array.from(document.querySelectorAll('#dynamics-lines-filter input:checked')).map(el => el.value);
-
-    // --- ИЗМЕНЕНИЕ: Если ничего не выбрано, выбираем первую опцию (cumulativeTotal) ---
+    
     if (lines.length === 0) {
         lines = ['cumulativeTotal'];
-        // Визуально ставим галочку обратно, чтобы пользователь видел, что произошло
         const defaultCheckbox = document.querySelector('#dynamics-lines-filter input[value="cumulativeTotal"]');
-        if (defaultCheckbox) {
-            defaultCheckbox.checked = true;
-        }
+        if (defaultCheckbox) defaultCheckbox.checked = true;
     }
+
+    const compareIdInput = document.getElementById('compare-student-id');
+    const compareId = compareIdInput ? compareIdInput.value : null;
 
     const requestBody = {
         filters: { 
             studentId: currentUser.id, 
-            lines: lines
+            lines: lines,
+            compareWithStudentId: compareId
         },
         widgetIds: ['myRankDynamics']
     };
     try {
         const analyticsData = await request('/analytics/query', 'POST', requestBody);
-        renderDynamicsChart(analyticsData.widgets.myRankDynamics.data);
+        
+        const data = analyticsData.widgets.myRankDynamics.data;
+        const hasCompareData = Object.keys(data).some(key => key.endsWith('_compare'));
+
+        // Проверка: если запрашивали сравнение, но данных нет
+        if (compareId && !hasCompareData) {
+            if (errorMsg) {
+                errorMsg.textContent = `Студент с ID ${compareId} не найден или не имеет данных.`;
+                errorMsg.style.display = 'block';
+            }
+            if (canvas) canvas.style.opacity = '1';
+            return false; // Ошибка
+        }
+
+        renderDynamicsChart(data);
+        return true; // Успех
     } catch (error) {
         console.error("Failed to update dynamics chart:", error);
         if (canvas) canvas.style.opacity = '1';
+        return false; // Ошибка сети
     }
 }
 
@@ -234,14 +252,42 @@ function renderDynamicsChart(data) {
         checkedLines = new Set(Array.from(linesFilter.querySelectorAll('input:checked')).map(el => el.value));
     }
     
+    const existingInput = document.getElementById('compare-student-id');
+    const currentValue = existingInput ? existingInput.value : '';
+    const existingError = document.getElementById('compare-error-msg');
+    const isErrorVisible = existingError && existingError.style.display === 'block';
+    const errorText = existingError ? existingError.textContent : '';
+
     if (!container.querySelector('.widget-header')) {
+        const noSpinStyle = `
+        <style>
+            input.no-spin::-webkit-outer-spin-button,
+            input.no-spin::-webkit-inner-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
+            input.no-spin[type=number] {
+              -moz-appearance: textfield;
+            }
+        </style>`;
+
         container.innerHTML = `
+            ${noSpinStyle}
             <div class="widget-header">
                 <h3>Динамика моего рейтинга</h3>
                 <button id="toggle-dynamics-filters-btn" class="filter-toggle-btn">Настроить</button>
             </div>
             <div id="dynamics-filters" class="widget-filters">
                 <div class="filter-group">
+                    <h4>Сравнить с (ID):</h4>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem;">
+                        <input type="number" id="compare-student-id" placeholder="ID" min="1" class="no-spin" 
+                               style="width: 150px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;"
+                               oninput="if(this.value < 0) this.value = '';">
+                        <button id="clear-compare-btn" title="Очистить" style="background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #dc3545; padding: 0 5px;">&times;</button>
+                    </div>
+                    <div id="compare-error-msg" style="color: #dc3545; font-size: 0.85rem; margin-bottom: 1rem; display: none;"></div>
+                    
                     <h4>Линии на графике:</h4>
                     <div id="dynamics-lines-filter">
                         <label><input type="checkbox" name="lines" value="cumulativeTotal"> Накопительный итог</label>
@@ -260,10 +306,32 @@ function renderDynamicsChart(data) {
         document.getElementById('toggle-dynamics-filters-btn').addEventListener('click', () => {
             document.getElementById('dynamics-filters').classList.toggle('open');
         });
-        document.getElementById('apply-dynamics-filters-btn').addEventListener('click', () => {
-            document.getElementById('dynamics-filters').classList.remove('open');
-            updateDynamicsChart();
+        
+        // --- ИЗМЕНЕНИЕ: Сворачиваем СРАЗУ, но если ошибка - РАЗВОРАЧИВАЕМ обратно ---
+        document.getElementById('apply-dynamics-filters-btn').addEventListener('click', async () => {
+            const filters = document.getElementById('dynamics-filters');
+            filters.classList.remove('open'); // Сворачиваем сразу (оптимистично)
+            
+            const success = await updateDynamicsChart();
+            
+            if (!success) {
+                filters.classList.add('open'); // Если ошибка - разворачиваем обратно
+            }
         });
+
+        document.getElementById('clear-compare-btn').addEventListener('click', () => {
+            document.getElementById('compare-student-id').value = '';
+            document.getElementById('compare-error-msg').style.display = 'none';
+        });
+    }
+
+    if (currentValue) {
+        document.getElementById('compare-student-id').value = currentValue;
+    }
+    if (isErrorVisible) {
+        const errorDiv = document.getElementById('compare-error-msg');
+        errorDiv.textContent = errorText;
+        errorDiv.style.display = 'block';
     }
 
     document.querySelectorAll('#dynamics-lines-filter input').forEach(input => {
@@ -278,16 +346,26 @@ function renderDynamicsChart(data) {
     }
 
     const datasets = Object.keys(data).map((key) => {
-        let color = '#6c757d'; 
-        let label = key;
+        const isCompare = key.endsWith('_compare');
+        const baseKey = key.replace('_compare', '');
 
-        switch (key) {
+        let color = '#6c757d'; 
+        let label = baseKey;
+
+        switch (baseKey) {
             case 'cumulativeTotal': color = '#007bff'; label = 'Накопительный итог'; break;
             case 'semesterTotal': color = '#17a2b8'; label = 'Балл за семестр'; break;
             case 'academic': color = '#ffc107'; label = 'Средний балл (учеба)'; break;
             case 'achievements': color = '#6610f2'; label = 'Достижения'; break;
             case 'excused': color = '#28a745'; label = 'Уваж. пропуски (ч.)'; break; 
             case 'unexcused': color = '#dc3545'; label = 'Неуваж. пропуски (ч.)'; break; 
+        }
+
+        const borderDash = isCompare ? [5, 5] : [];
+        const pointStyle = isCompare ? 'rect' : 'circle';
+        
+        if (isCompare) {
+            label += ' (Сравнение)';
         }
 
         return {
@@ -297,7 +375,9 @@ function renderDynamicsChart(data) {
             backgroundColor: color,
             tension: 0.1,
             fill: false,
-            borderWidth: 3,
+            borderWidth: isCompare ? 2 : 3,
+            borderDash: borderDash,
+            pointStyle: pointStyle,
             pointRadius: 4,
             pointHoverRadius: 6
         };
