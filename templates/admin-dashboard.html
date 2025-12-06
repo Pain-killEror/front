@@ -1,50 +1,70 @@
-<!--admin-dashboard.html-->
+<!-- templates/admin-dashboard.html -->
 
-<!-- 
-    Это HTML-фрагмент, который описывает структуру панели администратора.
-    Он будет загружен в <main id="dashboard-content"> на главной странице.
--->
+<style>
+    .admin-dashboard-grid {
+        display: grid;
+        /* ИЗМЕНЕНИЕ: Возвращаемся к сетке из двух равных колонок */
+        grid-template-columns: 1fr 1fr; 
+        gap: 1.5rem;
+    }
+
+    /* Стиль для нижнего виджета больше не нужен */
+
+    .status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-top: 0.5rem;
+    }
+
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 1rem; 
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+    .status-label {
+        font-size: 0.9rem;
+        color: #495057;
+        font-weight: 500;
+    }
+
+    .status-label::after {
+        content: ':';
+    }
+
+    .status-count {
+        font-size: 1.3rem;
+        font-weight: 600;
+    }
+
+    .status-item[data-status="ACTIVE"] .status-count { color: #28a745; }
+    .status-item[data-status="PENDING"] .status-count { color: #ffc107; }
+    .status-item[data-status="BLOCKED"] .status-count { color: #dc3545; }
+</style>
 
 <div id="admin-dashboard-grid" class="admin-dashboard-grid">
-    
-    <!-- Заглушка для виджета "Активность пользователей" -->
+
+    <!-- Заглушка для виджета "Статистика по статусам" -->
     <div id="widget-user-activity" class="widget">
-        <h3>Активность пользователей</h3>
+        <h3>Статистика по статусам</h3>
         <div class="widget-content-placeholder">
-            <p>Загрузка графика...</p>
+            <p>Загрузка статистики...</p>
         </div>
     </div>
 
-    <!-- Заглушка для виджета "Статистика по ролям" -->
+    <!-- Заглушка для виджета "Распределение персонала" -->
     <div id="widget-role-stats" class="widget">
-        <h3>Распределение по ролям</h3>
+        <h3>Распределение персонала</h3>
         <div class="widget-content-placeholder">
             <p>Загрузка диаграммы...</p>
         </div>
     </div>
-
-    <!-- Заглушка для виджета "Последние действия" -->
-    <div id="widget-recent-actions" class="widget full-width">
-        <h3>Последние действия</h3>
-        <div class="widget-content-placeholder">
-            <p>Загрузка ленты событий...</p>
-        </div>
-    </div>
-
-    <!-- Заглушка для виджета "Состояние системы" -->
-    <div id="widget-system-status" class="widget">
-        <h3>Состояние системы</h3>
-        <div class="widget-content-placeholder">
-            <p>Загрузка данных о БД...</p>
-        </div>
-    </div>
-
-    <!-- Заглушка для виджета "Подтверждение регистрации" -->
-    <div id="widget-pending-users" class="widget">
-        <h3>Ожидают подтверждения</h3>
-        <div class="widget-content-placeholder">
-            <p>Загрузка списка пользователей...</p>
-        </div>
-    </div>
+    
+    <!-- БЛОК С ТЕПЛОВОЙ КАРТОЙ ПОЛНОСТЬЮ УДАЛЕН -->
 
 </div>
