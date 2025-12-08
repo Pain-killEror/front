@@ -1,6 +1,8 @@
 // Глобальные переменные для кеширования справочников
 let cachedFaculties = [];
 let cachedSubjects = [];
+let allManageableUsers = [];
+const displayLimit = 50;// Можно поменять на любое удобное число (25, 50...)
 
 // ID ролей для отправки на бэкенд
 const ROLE_IDS = {
@@ -25,10 +27,12 @@ async function initAdminDashboard() {
             loadAdminWidgetsData(),
             loadPendingUsers(),
             loadFaculties(),
-            loadSubjects()
+            loadSubjects(),
+            loadManageableUsers()
         ]);
 
         setupApprovalModalListeners();
+        setupUserManagementListeners();
     } catch (error) {
         console.error("Ошибка:", error);
         document.getElementById('dashboard-content').innerHTML =
@@ -63,6 +67,7 @@ async function loadPendingUsers() {
     const tbody = document.querySelector('#pending-users-table tbody');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Загрузка...</td></tr>';
+    
     try {
         const users = await request('/users', 'GET');
         const pendingUsers = users.filter(u => u.status === 'PENDING');
@@ -85,7 +90,9 @@ async function loadPendingUsers() {
                 </td>
             </tr>
         `).join("");
+
     } catch (error) {
+        console.error("Ошибка загрузки заявок:", error);
         tbody.innerHTML = '<tr><td colspan="6" style="color:red;text-align:center;">Ошибка загрузки заявок</td></tr>';
     }
 }
@@ -426,4 +433,168 @@ function renderUserStatusChart(data) {
     ).join("");
 
     widget.innerHTML = `<h3>Статистика по статусам</h3><div class="status-list">${statsHtml}</div>`;
+}
+
+// --- ЛОГИКА УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ ---
+
+const roleTranslations = {
+    'ADMINISTRATOR': 'Администратор',
+    'DEAN_STAFF': 'Сотрудник деканата',
+    'TEACHER': 'Преподаватель',
+    'STUDENT': 'Студент',
+    'RECTORATE_STAFF': 'Сотрудник ректората'
+};
+
+
+async function loadManageableUsers() {
+    const tbody = document.querySelector('#manageable-users-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Загрузка...</td></tr>';
+    try {
+        const users = await request('/users/manageable', 'GET');
+        allManageableUsers = users;
+        renderManageableUsersTable();
+    } catch (error) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:red;text-align:center;">Ошибка загрузки пользователей</td></tr>';
+        console.error("Ошибка загрузки пользователей:", error);
+    }
+}
+
+function renderManageableUsersTable() {
+    const tbody = document.querySelector('#manageable-users-table tbody');
+    const infoContainer = document.getElementById('manageable-users-info');
+    if (!tbody || !infoContainer) return;
+
+    // 1. Фильтрация данных
+    const searchValue = document.getElementById('user-search-input').value.toLowerCase();
+    const roleFilter = document.getElementById('role-filter-select').value;
+    const filteredUsers = allManageableUsers.filter(user => {
+        const matchesSearch = user.fullName.toLowerCase().includes(searchValue) || String(user.id).includes(searchValue);
+        const matchesRole = (roleFilter === 'all' || user.roleName === roleFilter);
+        return matchesSearch && matchesRole;
+    });
+
+    const totalFound = filteredUsers.length;
+
+    // 2. Ограничиваем количество отображаемых строк
+    const usersToDisplay = filteredUsers.slice(0, displayLimit);
+
+    // 3. Отрисовка
+    if (usersToDisplay.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Пользователи не найдены</td></tr>';
+        infoContainer.innerHTML = ''; // Очищаем инфо-блок
+    } else {
+        tbody.innerHTML = usersToDisplay.map(user => {
+        const roleRussian = roleTranslations[user.roleName] || user.roleName || 'Не назначена';
+        
+        let actionButton = '';
+        const isCurrentUser = user.id === currentUser.id; // Проверяем, является ли это текущий пользователь
+
+        if (user.status === 'ACTIVE') {
+            actionButton = `<button class="action-btn btn-block" onclick="toggleStatus(${user.id})" ${isCurrentUser ? 'disabled' : ''}>Заблокировать</button>`;
+        } else {
+            actionButton = `<button class="action-btn btn-unblock" onclick="toggleStatus(${user.id})">Разблокировать</button>`;
+        }
+
+        const statusBadge = user.status === 'ACTIVE' 
+            ? `<span style="color: green;">Активен</span>`
+            : `<span style="color: red;">Заблокирован</span>`;
+
+        return `
+            <tr>
+                <td>${user.id}</td>
+                <td>${user.fullName}</td>
+                <td>${roleRussian}</td>
+                <td>${statusBadge}</td>
+                <td>${actionButton}</td>
+            </tr>
+        `;
+    }).join('');
+        
+        // 4. Обновление информационного текста
+        if (totalFound > displayLimit) {
+            infoContainer.textContent = `Показаны первые ${displayLimit} из ${totalFound} найденных.`;
+        } else {
+            infoContainer.textContent = `Найдено пользователей: ${totalFound}.`;
+        }
+    }
+}
+
+
+
+function setupUserManagementListeners() {
+    const searchInput = document.getElementById('user-search-input');
+    const roleSelect = document.getElementById('role-filter-select');
+    const clearBtn = document.getElementById('user-search-clear-btn');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            renderManageableUsersTable();
+            clearBtn.style.display = searchInput.value ? 'block' : 'none';
+        });
+    }
+    
+    if (roleSelect) {
+        roleSelect.addEventListener('change', renderManageableUsersTable);
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            renderManageableUsersTable();
+            searchInput.focus();
+        });
+    }
+}
+
+async function toggleStatus(userId) {
+    // Проверка на самоблокировку
+    if (userId === currentUser.id) {
+        showToast('Вы не можете заблокировать себя.', 'error');
+        return;
+    }
+
+    const user = allManageableUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    const action = user.status === 'ACTIVE' ? 'заблокировать' : 'разблокировать';
+    
+    // Используем новое окно подтверждения
+    const confirmed = await showCustomConfirm(`Вы уверены, что хотите ${action} пользователя ${user.fullName}?`);
+    
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await request(`/users/${userId}/status`, 'PATCH');
+        showToast(`Статус пользователя ${user.fullName} успешно изменен.`, 'success');
+        await loadManageableUsers(); // Перезагружаем список
+    } catch (error) {
+        showToast(`Ошибка изменения статуса: ${error.message}`, 'error');
+    }
+}ы
+
+// --- НОВАЯ ФУНКЦИЯ ДЛЯ МОДАЛЬНОГО ОКНА ---
+function showCustomConfirm(message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('custom-confirm-modal');
+        const msgElement = document.getElementById('confirm-msg');
+        const okBtn = document.getElementById('confirm-ok-btn');
+        const cancelBtn = document.getElementById('confirm-cancel-btn');
+
+        msgElement.textContent = message;
+        modal.style.display = 'flex';
+
+        okBtn.onclick = () => {
+            modal.style.display = 'none';
+            resolve(true);
+        };
+
+        cancelBtn.onclick = () => {
+            modal.style.display = 'none';
+            resolve(false);
+        };
+    });
 }

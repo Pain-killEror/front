@@ -50,7 +50,7 @@ async function request(endpoint, method = 'GET', body = null) {
         }
     } catch (error) {
         console.error('Ошибка API:', error);
-        alert(error.message);
+     
         throw error;
     }
 }

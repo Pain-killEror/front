@@ -202,6 +202,125 @@
     .toast.success { background-color: #28a745; }
     .toast.error { background-color: #dc3545; }
     .toast.info { background-color: #17a2b8; }
+
+    /* --- Стили для таблицы управления пользователями --- */
+#widget-manageable-users .table-wrapper {
+    max-height: 450px; /* Чуть больше, чем у таблицы заявок */
+    overflow-y: auto;
+}
+
+#manageable-users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#manageable-users-table th, #manageable-users-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+#manageable-users-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    position: sticky;
+    top: 0;
+}
+
+.table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    margin-top: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.table-controls input, .table-controls select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.btn-block { background-color: #dc3545; }
+.btn-unblock { background-color: #28a745; }
+
+.search-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.search-wrapper .clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #888;
+    padding: 0 5px;
+    line-height: 1;
+}
+
+.search-wrapper .clear-btn:hover {
+    color: #333;
+}
+
+.search-wrapper input {
+    padding-right: 30px; /* Добавляем место для крестика */
+}
+
+.table-info {
+    text-align: right;
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid #eee;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+/* --- Стили для кастомного окна подтверждения --- */
+.confirm-modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.confirm-modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+}
+
+.confirm-modal-content h4 {
+    margin-top: 0;
+}
+
+.confirm-modal-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+.confirm-modal-actions .action-btn {
+    padding: 0.6rem 1.2rem;
+}
+/* Кнопка "Отмена" */
+#confirm-cancel-btn {
+    background-color: #6c757d;
+}
+
 </style>
 
 <div id="admin-dashboard-grid" class="admin-dashboard-grid">
@@ -216,6 +335,44 @@
             </table>
         </div>
     </div>
+    <div id="widget-manageable-users" class="widget full-width">
+    <h3>Управление пользователями</h3>
+    <div class="table-controls">
+        <div class="search-wrapper"> <!-- <-- Добавили обертку -->
+        <input type="text" id="user-search-input" placeholder="Поиск по ID или ФИО..."> <!-- <-- Изменили плейсхолдер -->
+        <button id="user-search-clear-btn" class="clear-btn" style="display: none;">&times;</button> <!-- <-- Добавили кнопку -->
+        </div>
+        <div>
+            <label for="role-filter-select">Сортировать по роли: </label>
+            <select id="role-filter-select">
+                <option value="all">Все роли</option>
+                <option value="ADMINISTRATOR">Администратор</option>
+                <option value="DEAN_STAFF">Сотрудник деканата</option>
+                <option value="TEACHER">Преподаватель</option>
+                <option value="STUDENT">Студент</option>
+                <option value="RECTORATE_STAFF">Сотрудник ректората</option>
+            </select>
+        </div>
+    </div>
+    <div class="table-wrapper">
+        <table id="manageable-users-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>ФИО</th>
+                    <th>Роль</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Сюда JS вставит пользователей -->
+                <tr><td colspan="5" style="text-align:center;">Загрузка данных...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="manageable-users-info" class="table-info"></div>
+</div>
     <div id="widget-user-activity" class="widget">
         <h3>Статистика по статусам</h3>
         <div class="widget-content-placeholder"><p>Загрузка...</p></div>
@@ -301,6 +458,17 @@
         <div class="modal-footer">
             <button id="cancel-approval-btn" class="profile-btn" style="background-color: #6c757d; margin-right: 10px;">Отмена</button>
             <button id="save-approval-btn" class="profile-btn" style="background-color: #28a745;">Подтвердить</button>
+        </div>
+    </div>
+</div>
+
+<div id="custom-confirm-modal" class="confirm-modal-overlay" style="display: none;">
+    <div class="confirm-modal-content">
+        <h4>Подтвердите действие</h4>
+        <p id="confirm-msg">Вы уверены?</p>
+        <div class="confirm-modal-actions">
+            <button id="confirm-cancel-btn" class="action-btn">Отмена</button>
+            <button id="confirm-ok-btn" class="action-btn btn-block">Подтвердить</button>
         </div>
     </div>
 </div>
