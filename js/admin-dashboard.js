@@ -574,7 +574,7 @@ async function toggleStatus(userId) {
     } catch (error) {
         showToast(`Ошибка изменения статуса: ${error.message}`, 'error');
     }
-}ы
+}
 
 // --- НОВАЯ ФУНКЦИЯ ДЛЯ МОДАЛЬНОГО ОКНА ---
 function showCustomConfirm(message) {
