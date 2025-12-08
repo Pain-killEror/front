@@ -4,6 +4,22 @@ let cachedSubjects = [];
 let allManageableUsers = [];
 const displayLimit = 50;// Можно поменять на любое удобное число (25, 50...)
 
+function addAdminHeaderButtons() {
+    const userInfoContainer = document.querySelector('.user-info');
+    if (userInfoContainer) {
+        const reportButton = document.createElement('button');
+        reportButton.id = 'admin-report-btn';
+        reportButton.className = 'profile-btn'; // Используем стиль как у кнопки "Личный кабинет"
+        reportButton.textContent = 'Скачать PDF отчет';
+        reportButton.style.backgroundColor = '#28a745'; // Зеленый цвет для отличия
+        
+        reportButton.addEventListener('click', downloadAdminReport);
+        
+        // Вставляем кнопку перед кнопкой "Личный кабинет"
+        userInfoContainer.insertBefore(reportButton, userInfoContainer.querySelector('#profile-button'));
+    }
+}
+
 // ID ролей для отправки на бэкенд
 const ROLE_IDS = {
     'ADMINISTRATOR': 1,
@@ -21,6 +37,7 @@ async function initAdminDashboard() {
 
         const templateHtml = await response.text();
         document.getElementById('dashboard-content').innerHTML = templateHtml;
+        addAdminHeaderButtons();
 
         // Запускаем параллельную загрузку всех необходимых данных
         await Promise.all([
@@ -597,4 +614,52 @@ function showCustomConfirm(message) {
             resolve(false);
         };
     });
+}
+
+async function downloadAdminReport() {
+    const btn = document.getElementById('admin-report-btn');
+    const originalText = btn.textContent;
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+        showToast('Ошибка аутентификации.', 'error');
+        return;
+    }
+
+    try {
+        // Блокируем кнопку на время загрузки
+        btn.disabled = true;
+        btn.textContent = 'Генерация...';
+        btn.style.opacity = '0.7';
+
+        const response = await fetch(`${API_BASE_URL}/analytics/admin-report`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Ошибка сервера: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `admin_report_${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('Ошибка при скачивании отчета:', error);
+        showToast('Не удалось скачать отчет.', 'error');
+    } finally {
+        // Возвращаем кнопку в исходное состояние
+        btn.disabled = false;
+        btn.textContent = originalText;
+        btn.style.opacity = '1';
+    }
 }
