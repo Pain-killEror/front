@@ -202,42 +202,98 @@ function renderNextJournalBatch() {
 async function preloadJournalStudents(groupId) {
     const contentDiv = document.getElementById(`j-content-${groupId}`);
     const subjectId = document.getElementById('journal-subject-select').value;
-
+    
+    // Если предмет не выбран, показываем сообщение
     if (!subjectId) {
         contentDiv.innerHTML = '<p class="loading-text">Выберите предмет</p>';
         return;
     }
 
     try {
-        // Запрос студентов с их оценкой за СЕГОДНЯ
-        const students = await request(`/teacher/group/${groupId}/journal-data?subjectId=${subjectId}`, 'GET');
+        // 1. Запрос данных с бэкенда (список студентов + их оценки/пропуски)
+        const studentsData = await request(`/teacher/group/${groupId}/journal-data?subjectId=${subjectId}`, 'GET');
         
-        if (students.length === 0) {
-            contentDiv.innerHTML = '<p class="loading-text">Пустая группа</p>';
+        // Если группа пустая
+        if (studentsData.length === 0) {
+            contentDiv.innerHTML = '<p class="loading-text">В этой группе нет студентов.</p>';
             return;
         }
 
-        contentDiv.innerHTML = students.map(s => {
-            const hasMark = s.todayMark !== null && s.todayMark !== undefined;
-            const val = hasMark ? s.todayMark : '';
-            const dis = hasMark ? 'disabled' : ''; // Блокируем, если есть оценка
+        // 2. Собираем все уникальные даты из всех событий всех студентов
+        const allDates = new Set();
+        studentsData.forEach(student => {
+            if (student.events) {
+                student.events.forEach(event => allDates.add(event.date));
+            }
+        });
+        
+        // Превращаем Set в отсортированный массив дат
+        const sortedDates = Array.from(allDates).sort();
 
-            return `
-            <div class="journal-student-row">
-                <div>${s.studentFullName}</div>
+        // 3. Формируем шапку таблицы (<th>)
+        let headerHtml = '<tr><th>Студент</th>'; // Первая "липкая" колонка
+        
+        // Добавляем колонки для каждой даты
+        sortedDates.forEach(date => {
+            const d = new Date(date);
+            // Форматируем дату в ДД.ММ
+            const formattedDate = `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+            headerHtml += `<th>${formattedDate}</th>`;
+        });
+        
+        // Добавляем последнюю "липкую" колонку для сегодняшней даты
+        const today = new Date();
+        const formattedToday = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+        headerHtml += `<th>${formattedToday}</th></tr>`;
+
+        // 4. Формируем строки (<tbody>) для каждого студента
+        const rowsHtml = studentsData.map(student => {
+            let row = `<tr><td>${student.studentFullName}</td>`; // Первая ячейка с ФИО
+
+            // Создаем Map (словарь) для быстрого поиска оценки по дате. 
+            // Это эффективнее, чем искать в массиве в цикле.
+            const eventsMap = new Map();
+            if (student.events) {
+                student.events.forEach(e => eventsMap.set(e.date, e.value));
+            }
+            
+            // Заполняем ячейки с оценками/пропусками за прошлые даты
+            sortedDates.forEach(date => {
+                const eventValue = eventsMap.get(date) || ''; // Если оценки нет, ячейка пустая
+                row += `<td>${eventValue}</td>`;
+            });
+
+            // Формируем последнюю ячейку для ввода оценки/пропуска на сегодня
+            const todayStr = today.toISOString().split('T')[0];
+            const todayMark = eventsMap.get(todayStr);
+            const hasMarkToday = todayMark !== undefined; // Проверяем, есть ли запись за сегодня
+
+            row += `<td>
                 <div class="mark-input-container">
-                    <input type="text" class="mark-input" id="inp-${s.studentId}" 
-                           value="${val}" ${dis} maxlength="2" autocomplete="off"
-                           placeholder=""
-                           onkeypress="handleEnter(event, ${s.studentId})">
-                    <button class="save-mark-btn" onclick="saveMark(${s.studentId})">✓</button>
+                    <input type="text" class="mark-input" id="inp-${student.studentId}" 
+                           value="${hasMarkToday ? todayMark : ''}" 
+                           ${hasMarkToday ? 'disabled' : ''}
+                           autocomplete="off"
+                           onkeypress="handleEnter(event, ${student.studentId})">
+                    <button class="save-mark-btn" onclick="saveMark(${student.studentId})">✓</button>
                 </div>
-            </div>`;
+            </td>`;
+            
+            return row + '</tr>';
         }).join('');
 
+        // 5. Вставляем готовую таблицу в HTML
+        contentDiv.innerHTML = `
+            <div class="journal-table-wrapper">
+                <table class="journal-table">
+                    <thead>${headerHtml}</thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+        `;
     } catch (e) {
-        console.error(e);
-        contentDiv.innerHTML = '<p style="color:red; text-align:center; padding:10px;">Ошибка загрузки</p>';
+        console.error("Ошибка при загрузке журнала:", e);
+        contentDiv.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки журнала</p>';
     }
 }
 

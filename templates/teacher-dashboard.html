@@ -68,6 +68,61 @@
 <!-- Стили, специфичные для этой панели -->
 <style>
     
+/* стили для мокрых кнопок и скрола */
+    
+.journal-table-wrapper {
+    overflow-x: auto; /* Горизонтальный скролл */
+    border: 1px solid #eee;
+}
+
+.journal-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap; /* Запрет переноса строк */
+}
+
+.journal-table th, .journal-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+    min-width: 60px; /* Минимальная ширина ячейки даты */
+}
+
+.journal-table th {
+    background-color: #f8f9fa;
+    font-size: 0.85rem;
+}
+
+/* Магия "липких" колонок */
+.journal-table th:first-child, .journal-table td:first-child,
+.journal-table th:last-child, .journal-table td:last-child {
+    position: sticky;
+    background-color: #f8f9fa; /* Фон, чтобы не было видно прокручиваемый контент */
+}
+
+.journal-table th:first-child, .journal-table td:first-child {
+    left: 0;
+    min-width: 200px; /* Ширина колонки с ФИО */
+    text-align: left;
+}
+
+.journal-table th:last-child, .journal-table td:last-child {
+    right: 0;
+    min-width: 120px; /* Ширина колонки для ввода */
+    box-shadow: -2px 0 5px -2px #ccc; /* Тень для отделения */
+}
+
+.journal-table td:first-child {
+    background-color: #fff; /* Фон для ФИО студентов */
+}
+
+.journal-table td:last-child {
+    background-color: #fff;
+}
+
+.mark-input { width: 50px; }
+
+    /* конец стилей для мокрых кнопок и скрола */
 
  /* Стили для аккордеона групп */
     /* --- Стили для Электронного журнала (АКТУАЛЬНЫЕ) --- */
