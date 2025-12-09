@@ -477,38 +477,43 @@ async function preloadPerformanceStudents(groupId) {
     const contentDiv = document.getElementById(`p-content-${groupId}`);
     const subjectId = document.getElementById('performance-subject-select').value;
 
-    if (!subjectId) {
-        contentDiv.innerHTML = '<p class="loading-text">Выберите предмет</p>';
-        return;
-    }
+    if (!subjectId) { /* ... */ return; }
 
     try {
-        // Запрос среднего балла
         const students = await request(`/teacher/group/${groupId}/performance?subjectId=${subjectId}`, 'GET');
         
-        if (students.length === 0) {
-            contentDiv.innerHTML = '<p class="loading-text">Пустая группа</p>';
-            return;
-        }
+        if (students.length === 0) { /* ... */ return; }
 
-        contentDiv.innerHTML = students.map(s => {
-            // Раскраска оценки
-            let color = '#333';
-            if (s.averageMark >= 8) color = '#28a745'; // Зеленый для отличников
-            else if (s.averageMark < 4 && s.averageMark > 0) color = '#dc3545'; // Красный для двоечников
-
+        // Создаем шапку таблицы
+        const headerHtml = `
+            <div class="perf-student-row header">
+                <div>Студент</div>
+                <div>Ср. балл</div>
+                <div title="Пропуски по уважительной причине">Проп. (Ув.)</div>
+                <div title="Пропуски по неуважительной причине">Проп. (Неув.)</div>
+                <div title="Баллы за внеучебную деятельность">Внеучеб.</div>
+            </div>
+        `;
+        
+        // Создаем строки студентов
+        const rowsHtml = students.map(s => {
+            let avgMarkColor = s.averageMark >= 8 ? '#28a745' : (s.averageMark < 4 && s.averageMark > 0 ? '#dc3545' : '#333');
+            
             return `
-            <div class="journal-student-row">
+            <div class="perf-student-row">
                 <div>${s.studentFullName}</div>
-                <div style="font-weight:bold; color:${color}; font-size:1.1rem; min-width: 45px; text-align: center;">
-                    ${s.averageMark}
-                </div>
+                <div style="font-weight:bold; color:${avgMarkColor};">${s.averageMark}</div>
+                <div>${s.excusedAbsences} ч.</div>
+                <div style="color: ${s.unexcusedAbsences > 0 ? '#dc3545' : '#333'};">${s.unexcusedAbsences} ч.</div>
+                <div style="color: #007bff;">${s.extracurricularScore}</div>
             </div>`;
         }).join('');
 
+        contentDiv.innerHTML = headerHtml + rowsHtml;
+
     } catch (e) {
         console.error(e);
-        contentDiv.innerHTML = '<p style="color:red; text-align:center; padding:10px;">Ошибка</p>';
+        contentDiv.innerHTML = '<p style="color:red; text-align:center;">Ошибка</p>';
     }
 }
 

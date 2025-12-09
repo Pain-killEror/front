@@ -68,6 +68,33 @@
 <!-- Стили, специфичные для этой панели -->
 <style>
     
+/* Новые стили для таблицы успеваемости */
+.perf-student-row {
+    display: grid;
+    /* ФИО | Ср.балл | Уваж. | Неуваж. | Внеучеб. */
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 15px;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.perf-student-row.header {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #6c757d;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.perf-student-row > div {
+    text-align: center;
+}
+
+.perf-student-row > div:first-child {
+    text-align: left;
+}
+
 /* стили для мокрых кнопок и скрола */
     
 .journal-table-wrapper {
