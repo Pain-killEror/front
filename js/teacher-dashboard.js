@@ -372,6 +372,8 @@ function initPerformanceWidget() {
     const subjectSelect = document.getElementById('performance-subject-select');
     const groupSearch = document.getElementById('performance-group-search');
     const container = document.getElementById('performance-groups-container');
+    const exportBtn = document.getElementById('pdf-export-btn');
+    exportBtn.style.backgroundColor = '#86dc9aff'; // <-- Устанавливаем зеленый фон
 
     if (!container) return;
 
@@ -386,11 +388,109 @@ function initPerformanceWidget() {
     groupSearch.addEventListener('input', (e) => {
         renderPerformanceList(e.target.value.toLowerCase());
     });
+
+    exportBtn.addEventListener('click', () => {
+        downloadPerformancePdf();
+    });
+}
+
+function showToast(message, type = 'info') { // type может быть 'success', 'error', 'info'
+    const container = document.getElementById('toast-container');
+    
+    // Если контейнера нет - выходим
+    if (!container) {
+        console.error("Toast container not found!");
+        alert(message); // Показываем обычный alert как запасной вариант
+        return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    // Показать "тост"
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+
+    // Скрыть и удалить "тост" через 5 секунд
+    setTimeout(() => {
+        toast.classList.remove('show');
+        // Удаляем элемент после завершения анимации
+        toast.addEventListener('transitionend', () => toast.remove());
+    }, 5000);
+}
+
+async function downloadPerformancePdf() {
+    const subjectId = document.getElementById('performance-subject-select').value;
+    if (!subjectId) {
+        showToast('Сначала выберите предмет', 'error');
+        return;
+    }
+
+    // 1. Собираем ID всех ОТКРЫТЫХ групп
+    const openGroupItems = document.querySelectorAll('#performance-groups-container .journal-group-item.open');
+    const groupIds = Array.from(openGroupItems).map(item => {
+        // Извлекаем ID из id="p-group-123"
+        return parseInt(item.id.replace('p-group-', ''));
+    });
+   
+
+    if (groupIds.length === 0) {
+        showToast('Откройте хотя бы одну группу для отчета', 'info');
+        return;
+    }
+
+    const btn = document.getElementById('pdf-export-btn');
+    const originalText = btn.textContent;
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Генерация...';
+
+        // 2. Отправляем запрос на бэкенд
+        const response = await fetch(`${API_BASE_URL}/teacher/performance-report`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({
+                subjectId: parseInt(subjectId),
+                groupIds: groupIds
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Ошибка сервера при создании PDF');
+        }
+
+        // 3. Скачиваем файл
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Успеваемость_${new Date().toLocaleDateString()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+    } catch (e) {
+        console.error(e);
+        showToast(e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
 }
 
 async function loadPerformanceGroups() {
     const container = document.getElementById('performance-groups-container');
     const subjectId = document.getElementById('performance-subject-select').value;
+    
     container.innerHTML = '<p class="loading-text">Загрузка...</p>';
     
     if (!subjectId) {
