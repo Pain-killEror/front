@@ -1,100 +1,505 @@
-// Файл: js/teacher-dashboard.js
-// Содержит ВСЮ логику, необходимую для работы панели преподавателя.
+// ============================================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================================
 
-// Глобальные переменные для хранения экземпляров графиков,
-// чтобы их можно было обновлять.
+let teacherSubjects = [];
+
+// Переменные для Журнала
+let allJournalGroups = [];
+let displayedJournalGroupsCount = 0;
+
+// Переменные для Успеваемости
+let allPerformanceGroups = [];
+let displayedPerformanceGroupsCount = 0;
+
+// Переменная для графика
 let groupComparisonChart = null;
+
+const GROUPS_LIMIT = 50; // Грузим по 50 групп за раз
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================================
 
 /**
  * Главная функция, которую вызывает диспетчер dashboard.js
  */
 async function initTeacherDashboard() {
-    // 1. Загружаем HTML-шаблон для панели преподавателя
     try {
         const response = await fetch('templates/teacher-dashboard.html');
-        if (!response.ok) throw new Error('Не удалось загрузить шаблон для преподавателя');
+        if (!response.ok) throw new Error('Не удалось загрузить шаблон');
         const templateHtml = await response.text();
-
-        // 2. Вставляем HTML в главный контейнер
         document.getElementById('dashboard-content').innerHTML = templateHtml;
 
-        // 3. Запускаем первоначальную загрузку данных для всех виджетов
-        await loadTeacherWidgetsData();
+        // 1. Загружаем предметы (один раз для обоих виджетов)
+        await loadTeacherSubjects();
+
+        // 2. Инициализируем логику виджетов
+        initJournalWidget();
+        initPerformanceWidget();
+
+        // 3. Загружаем остальные аналитические виджеты (графики, достижения)
+        await loadTeacherAnalyticsData();
 
     } catch (error) {
-        console.error("Ошибка при инициализации панели преподавателя:", error);
-        document.getElementById('dashboard-content').innerHTML =
-            '<div class="widget"><p>Произошла ошибка при загрузке интерфейса преподавателя.</p></div>';
+        console.error("Ошибка инициализации:", error);
     }
 }
 
-/**
- * Эта функция запрашивает данные для ВСЕХ виджетов преподавателя
- * через универсальный эндпоинт /api/analytics/query.
- */
-async function loadTeacherWidgetsData() {
-    console.log("Загружаем данные для виджетов преподавателя...");
-    // TODO: Показать скелетоны/заглушки на время загрузки
+// Загрузка предметов преподавателя и заполнение выпадающих списков
+async function loadTeacherSubjects() {
+    try {
+        teacherSubjects = await request('/teacher/my-subjects', 'GET');
+        
+        const journalSelect = document.getElementById('journal-subject-select');
+        const perfSelect = document.getElementById('performance-subject-select');
+        
+        if (!journalSelect || !perfSelect) return;
 
-    // Готовим тело запроса
+        if (teacherSubjects.length === 0) {
+            const noSub = '<option>Нет предметов</option>';
+            journalSelect.innerHTML = noSub;
+            perfSelect.innerHTML = noSub;
+            return;
+        }
+
+        let options = '<option value="" disabled selected>-- Выберите дисциплину --</option>';
+        teacherSubjects.forEach(sub => {
+            options += `<option value="${sub.id}">${sub.name}</option>`;
+        });
+        
+        journalSelect.innerHTML = options;
+        perfSelect.innerHTML = options;
+
+        // Если предмет всего один, выбираем его автоматически везде
+        if (teacherSubjects.length === 1) {
+            const subId = teacherSubjects[0].id;
+            journalSelect.value = subId;
+            perfSelect.value = subId;
+            // Сразу запускаем загрузку групп
+            loadJournalGroups();
+            loadPerformanceGroups();
+        }
+
+    } catch (e) {
+        console.error("Ошибка загрузки предметов", e);
+    }
+}
+
+// ============================================================
+// ЛОГИКА 1: ЭЛЕКТРОННЫЙ ЖУРНАЛ (Ввод оценок)
+// ============================================================
+
+function initJournalWidget() {
+    const subjectSelect = document.getElementById('journal-subject-select');
+    const groupSearch = document.getElementById('journal-group-search');
+    const container = document.getElementById('journal-groups-container');
+
+    if (!container) return;
+
+    // Бесконечный скролл
+    container.addEventListener('scroll', () => {
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50) {
+            renderNextJournalBatch();
+        }
+    });
+
+    subjectSelect.addEventListener('change', () => loadJournalGroups());
+    
+    groupSearch.addEventListener('input', (e) => {
+        renderJournalList(e.target.value.toLowerCase());
+    });
+}
+
+async function loadJournalGroups() {
+    const container = document.getElementById('journal-groups-container');
+    const subjectId = document.getElementById('journal-subject-select').value;
+    container.innerHTML = '<p class="loading-text">Загрузка групп...</p>';
+    
+    if (!subjectId) {
+        container.innerHTML = '<p class="loading-text">Выберите предмет</p>';
+        return;
+    }
+
+    try {
+        // ЗАПРАШИВАЕМ ТОЛЬКО РЕЛЕВАНТНЫЕ ГРУППЫ
+        allJournalGroups = await request(`/teacher/my-relevant-groups?subjectId=${subjectId}`, 'GET');
+        renderJournalList();
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<p style="color:red; text-align:center">Ошибка</p>';
+    }
+}
+
+function renderJournalList(searchTerm = "") {
+    const container = document.getElementById('journal-groups-container');
+    container.innerHTML = '';
+
+    const filtered = allJournalGroups.filter(g => g.name.toLowerCase().includes(searchTerm));
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="loading-text">Группы не найдены</p>';
+        return;
+    }
+
+    filtered.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'journal-group-item';
+        div.id = `j-group-${g.id}`;
+        
+        // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+        // Возвращаем правильный HTML-код для аккордеона
+        div.innerHTML = `
+            <div class="journal-group-header" onclick="toggleJournalAccordion(${g.id})">
+                <span>Группа ${g.name}</span>
+                <span class="journal-arrow">▼</span>
+            </div>
+            <div class="journal-group-content" id="j-content-${g.id}">
+                <p class="loading-text">Загрузка...</p>
+            </div>
+        `;
+        // -------------------------
+        
+        container.appendChild(div);
+        preloadJournalStudents(g.id);
+    });
+}
+
+function renderNextJournalBatch() {
+    const container = document.getElementById('journal-groups-container');
+    let groups = allJournalGroups;
+    
+    if (container.dataset.filteredGroups) {
+        groups = JSON.parse(container.dataset.filteredGroups);
+    }
+
+    if (displayedJournalGroupsCount >= groups.length) return;
+
+    const batch = groups.slice(displayedJournalGroupsCount, displayedJournalGroupsCount + BATCH_SIZE);
+    
+    batch.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'journal-group-item';
+        div.id = `j-group-${g.id}`;
+        div.innerHTML = `
+            <div class="journal-group-header" onclick="toggleJournalAccordion(${g.id})">
+                <span>Группа ${g.name}</span>
+                <span class="journal-arrow">▼</span>
+            </div>
+            <div class="journal-group-content" id="j-content-${g.id}">
+                <p class="loading-text">Загрузка...</p>
+            </div>
+        `;
+        container.appendChild(div);
+        
+        // Сразу грузим студентов для этой группы (параллельно)
+        preloadJournalStudents(g.id);
+    });
+    
+    displayedJournalGroupsCount += batch.length;
+}
+
+async function preloadJournalStudents(groupId) {
+    const contentDiv = document.getElementById(`j-content-${groupId}`);
+    const subjectId = document.getElementById('journal-subject-select').value;
+
+    if (!subjectId) {
+        contentDiv.innerHTML = '<p class="loading-text">Выберите предмет</p>';
+        return;
+    }
+
+    try {
+        // Запрос студентов с их оценкой за СЕГОДНЯ
+        const students = await request(`/teacher/group/${groupId}/journal-data?subjectId=${subjectId}`, 'GET');
+        
+        if (students.length === 0) {
+            contentDiv.innerHTML = '<p class="loading-text">Пустая группа</p>';
+            return;
+        }
+
+        contentDiv.innerHTML = students.map(s => {
+            const hasMark = s.todayMark !== null && s.todayMark !== undefined;
+            const val = hasMark ? s.todayMark : '';
+            const dis = hasMark ? 'disabled' : ''; // Блокируем, если есть оценка
+
+            return `
+            <div class="journal-student-row">
+                <div>${s.studentFullName}</div>
+                <div class="mark-input-container">
+                    <input type="text" class="mark-input" id="inp-${s.studentId}" 
+                           value="${val}" ${dis} maxlength="2" autocomplete="off"
+                           placeholder=""
+                           onkeypress="handleEnter(event, ${s.studentId})">
+                    <button class="save-mark-btn" onclick="saveMark(${s.studentId})">✓</button>
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (e) {
+        console.error(e);
+        contentDiv.innerHTML = '<p style="color:red; text-align:center; padding:10px;">Ошибка загрузки</p>';
+    }
+}
+
+function toggleJournalAccordion(groupId) {
+    const content = document.getElementById(`j-content-${groupId}`);
+    const item = document.getElementById(`j-group-${groupId}`);
+    
+    if (content.style.display === 'block') {
+        content.style.display = 'none';
+        item.classList.remove('open');
+    } else {
+        content.style.display = 'block';
+        item.classList.add('open');
+    }
+}
+
+function handleEnter(e, studentId) {
+    if (e.key === 'Enter') {
+        saveMark(studentId);
+    }
+}
+
+async function saveMark(studentId) {
+    const subjectId = document.getElementById('journal-subject-select').value;
+    const input = document.getElementById(`inp-${studentId}`);
+    const value = input.value.trim().toUpperCase();
+
+    if (!value) return;
+
+    // Валидация: либо число, либо Н/H
+    const isAbsence = (value === 'Н' || value === 'H'); // Русская и английская
+    const isMark = /^[0-9]+$/.test(value);
+
+    if (!isAbsence && (!isMark || parseInt(value) < 1 || parseInt(value) > 10)) {
+        showToast('Введите оценку (1-10) или "н"', 'error');
+        return;
+    }
+
+    // Блокируем поле перед запросом
+    input.disabled = true;
+
+    try {
+        if (isAbsence) {
+            await request('/absences', 'POST', {
+                studentId: studentId,
+                subjectId: parseInt(subjectId),
+                absenceDate: new Date().toISOString().split('T')[0],
+                hours: 2,
+                reasonType: 'UNEXCUSED'
+            });
+        } else {
+            await request('/grades', 'POST', {
+                studentId: studentId,
+                subjectId: parseInt(subjectId),
+                assessmentType: 'SEMESTER_MARK',
+                mark: parseInt(value),
+                examDate: new Date().toISOString().split('T')[0]
+            });
+        }
+        showToast('Сохранено', 'success');
+        // Поле остается disabled (зеленым)
+    } catch (e) {
+        showToast(e.message, 'error');
+        // Разблокируем при ошибке
+        input.disabled = false;
+        input.focus();
+    }
+}
+
+
+// ============================================================
+// ЛОГИКА 2: УСПЕВАЕМОСТЬ (Просмотр среднего балла)
+// ============================================================
+
+function initPerformanceWidget() {
+    const subjectSelect = document.getElementById('performance-subject-select');
+    const groupSearch = document.getElementById('performance-group-search');
+    const container = document.getElementById('performance-groups-container');
+
+    if (!container) return;
+
+    container.addEventListener('scroll', () => {
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50) {
+            renderNextPerformanceBatch();
+        }
+    });
+
+    subjectSelect.addEventListener('change', () => loadPerformanceGroups());
+    
+    groupSearch.addEventListener('input', (e) => {
+        renderPerformanceList(e.target.value.toLowerCase());
+    });
+}
+
+async function loadPerformanceGroups() {
+    const container = document.getElementById('performance-groups-container');
+    const subjectId = document.getElementById('performance-subject-select').value;
+    container.innerHTML = '<p class="loading-text">Загрузка...</p>';
+    
+    if (!subjectId) {
+        container.innerHTML = '<p class="loading-text">Выберите предмет</p>';
+        return;
+    }
+
+    try {
+        allPerformanceGroups = await request(`/teacher/my-relevant-groups?subjectId=${subjectId}`, 'GET');
+        renderPerformanceList();
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<p style="color:red; text-align:center">Ошибка</p>';
+    }
+}
+
+function renderPerformanceList(searchTerm = "") {
+    const container = document.getElementById('performance-groups-container');
+    container.innerHTML = '';
+
+    const filtered = allPerformanceGroups.filter(g => g.name.toLowerCase().includes(searchTerm));
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="loading-text">Группы не найдены</p>';
+        return;
+    }
+
+    filtered.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'journal-group-item';
+        div.id = `p-group-${g.id}`;
+        
+        // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+        div.innerHTML = `
+            <div class="journal-group-header" onclick="togglePerformanceAccordion(${g.id})">
+                <span>Группа ${g.name}</span>
+                <span class="journal-arrow">▼</span>
+            </div>
+            <div class="journal-group-content" id="p-content-${g.id}">
+                <p class="loading-text">Загрузка...</p>
+            </div>
+        `;
+        // -------------------------
+        
+        container.appendChild(div);
+        preloadPerformanceStudents(g.id);
+    });
+}
+
+function renderNextPerformanceBatch() {
+    const container = document.getElementById('performance-groups-container');
+    let groups = allPerformanceGroups;
+    
+    if (container.dataset.filteredGroups) {
+        groups = JSON.parse(container.dataset.filteredGroups);
+    }
+
+    if (displayedPerformanceGroupsCount >= groups.length) return;
+
+    const batch = groups.slice(displayedPerformanceGroupsCount, displayedPerformanceGroupsCount + BATCH_SIZE);
+    
+    batch.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'journal-group-item';
+        div.id = `p-group-${g.id}`;
+        div.innerHTML = `
+            <div class="journal-group-header" onclick="togglePerformanceAccordion(${g.id})">
+                <span>Группа ${g.name}</span>
+                <span class="journal-arrow">▼</span>
+            </div>
+            <div class="journal-group-content" id="p-content-${g.id}">
+                <p class="loading-text">Загрузка...</p>
+            </div>
+        `;
+        container.appendChild(div);
+        
+        preloadPerformanceStudents(g.id);
+    });
+    
+    displayedPerformanceGroupsCount += batch.length;
+}
+
+async function preloadPerformanceStudents(groupId) {
+    const contentDiv = document.getElementById(`p-content-${groupId}`);
+    const subjectId = document.getElementById('performance-subject-select').value;
+
+    if (!subjectId) {
+        contentDiv.innerHTML = '<p class="loading-text">Выберите предмет</p>';
+        return;
+    }
+
+    try {
+        // Запрос среднего балла
+        const students = await request(`/teacher/group/${groupId}/performance?subjectId=${subjectId}`, 'GET');
+        
+        if (students.length === 0) {
+            contentDiv.innerHTML = '<p class="loading-text">Пустая группа</p>';
+            return;
+        }
+
+        contentDiv.innerHTML = students.map(s => {
+            // Раскраска оценки
+            let color = '#333';
+            if (s.averageMark >= 8) color = '#28a745'; // Зеленый для отличников
+            else if (s.averageMark < 4 && s.averageMark > 0) color = '#dc3545'; // Красный для двоечников
+
+            return `
+            <div class="journal-student-row">
+                <div>${s.studentFullName}</div>
+                <div style="font-weight:bold; color:${color}; font-size:1.1rem; min-width: 45px; text-align: center;">
+                    ${s.averageMark}
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (e) {
+        console.error(e);
+        contentDiv.innerHTML = '<p style="color:red; text-align:center; padding:10px;">Ошибка</p>';
+    }
+}
+
+function togglePerformanceAccordion(groupId) {
+    const content = document.getElementById(`p-content-${groupId}`);
+    const item = document.getElementById(`p-group-${groupId}`);
+    
+    if (content.style.display === 'block') {
+        content.style.display = 'none';
+        item.classList.remove('open');
+    } else {
+        content.style.display = 'block';
+        item.classList.add('open');
+    }
+}
+
+
+// ============================================================
+// ЛОГИКА 3: ОСТАЛЬНАЯ АНАЛИТИКА (ГРАФИКИ, ДОСТИЖЕНИЯ)
+// ============================================================
+
+async function loadTeacherAnalyticsData() {
+    console.log("Загружаем данные для виджетов преподавателя...");
+
     const requestBody = {
         filters: {
-            // Используем ID текущего пользователя (преподавателя) из глобальной переменной
             teacherId: currentUser.id
         },
         widgetIds: [
-            "myStudentPerformance",
             "myLatestAchievements",
             "myGroupComparison"
         ]
     };
 
     try {
-        // Отправляем единый запрос на бэкенд
         const analyticsData = await request('/analytics/query', 'POST', requestBody);
 
-        // Отрисовываем каждый виджет, передавая ему соответствующие данные
-        renderStudentPerformanceTable(analyticsData.widgets.myStudentPerformance.data);
         renderLatestAchievementsList(analyticsData.widgets.myLatestAchievements.data);
         renderGroupComparisonChart(analyticsData.widgets.myGroupComparison.data);
 
     } catch (error) {
-        console.error("Ошибка при загрузке данных для виджетов преподавателя:", error);
-        // В случае ошибки показываем сообщение
-        document.getElementById('dashboard-grid-teacher').innerHTML =
-            '<div class="widget"><p>Не удалось загрузить данные для панели.</p></div>';
+        console.error("Ошибка при загрузке аналитики:", error);
     }
 }
 
-
-// --- ФУНКЦИИ РЕНДЕРИНГА ---
-
 /**
- * 1. Рендеринг таблицы "Успеваемость моих студентов"
- */
-function renderStudentPerformanceTable(data) {
-    const container = document.getElementById('widget-student-performance');
-    if (!container) return;
-
-    const tbody = container.querySelector('tbody');
-    if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4">Нет данных об успеваемости студентов.</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = data.map(student => `
-        <tr>
-            <td>${student.studentId}</td>
-            <td>${student.studentFullName}</td>
-            <td>${student.groupName}</td>
-            <td>${student.averageMark.toFixed(2)}</td>
-        </tr>
-    `).join('');
-}
-
-/**
- * 2. Рендеринг списка "Последние добавленные достижения"
- *    (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+ * Рендеринг списка "Последние добавленные достижения"
  */
 function renderLatestAchievementsList(data) {
     const container = document.getElementById('widget-latest-achievements');
@@ -106,7 +511,6 @@ function renderLatestAchievementsList(data) {
         return;
     }
 
-    // ИЗМЕНЕНИЯ ЗДЕСЬ: используем поля из AchievementDto (typeName, studentId)
     const listHtml = data.map(ach => `
         <li>
             <strong>${ach.typeName}</strong> (${ach.pointsAwarded} баллов)
@@ -119,9 +523,8 @@ function renderLatestAchievementsList(data) {
     contentDiv.innerHTML = `<ul class="achievement-list">${listHtml}</ul>`;
 }
 
-
 /**
- * 3. Рендеринг графика "Сравнительный анализ групп"
+ * Рендеринг графика "Сравнительный анализ групп"
  */
 function renderGroupComparisonChart(data) {
     const container = document.getElementById('widget-group-comparison-teacher');
@@ -133,12 +536,11 @@ function renderGroupComparisonChart(data) {
         return;
     }
     
-    // Вставляем canvas для графика
     placeholder.innerHTML = '<canvas id="groupComparisonCanvas"></canvas>';
     const ctx = document.getElementById('groupComparisonCanvas').getContext('2d');
 
     if (groupComparisonChart) {
-        groupComparisonChart.destroy(); // Уничтожаем старый график перед отрисовкой нового
+        groupComparisonChart.destroy();
     }
 
     const labels = data.map(item => item.groupName);
@@ -166,9 +568,7 @@ function renderGroupComparisonChart(data) {
                 }
             },
             plugins: {
-                legend: {
-                    display: false // Легенда не нужна для одного набора данных
-                }
+                legend: { display: false }
             }
         }
     });

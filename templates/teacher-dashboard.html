@@ -3,46 +3,215 @@
 <!-- Сетка для размещения виджетов -->
 <div id="dashboard-grid-teacher" class="dashboard-grid-teacher">
 
+ <!-- НОВЫЙ ВИДЖЕТ: Электронный журнал -->
+    <div id="widget-grading-journal" class="widget full-width">
+        <div class="widget-header">
+            <h3>Электронный журнал</h3>
+            <!-- Выбор дисциплины -->
+            <select id="journal-subject-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="" disabled selected>-- Выберите дисциплину --</option>
+            </select>
+        </div>
+
+        <!-- Поиск по названию группы -->
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="journal-group-search" placeholder="Поиск группы (например, 5521)..." 
+                   style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <!-- Контейнер для списка групп (Аккордеон) -->
+        <div id="journal-groups-container" class="journal-groups-list">
+            <p style="text-align: center; color: #888;">Выберите предмет, чтобы загрузить группы.</p>
+        </div>
+    </div>
     <!-- Виджет 1: Успеваемость моих студентов (таблица) -->
     <div id="widget-student-performance" class="widget full-width">
-        <h3>Успеваемость моих студентов</h3>
-        <div class="table-wrapper">
-            <table id="performance-table-teacher">
-                <thead>
-                    <tr>
-                        <th>ID Студента</th>
-                        <th>ФИО</th>
-                        <th>Группа</th>
-                        <th>Средний балл</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Сюда JS вставит строки с данными -->
-                </tbody>
-            </table>
+        <div class="widget-header">
+            <h3>Успеваемость (Средний балл)</h3>
+            <!-- Выбор дисциплины для успеваемости -->
+            <select id="performance-subject-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="" disabled selected>-- Выберите дисциплину --</option>
+            </select>
+        </div>
+
+        <!-- Поиск по названию группы -->
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="performance-group-search" placeholder="Поиск группы..." 
+                style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <!-- Контейнер для списка групп (Аккордеон) -->
+        <!-- Используем те же классы стилей journal-*, чтобы не дублировать CSS -->
+        <div id="performance-groups-container" class="journal-groups-list">
+            <p style="text-align: center; color: #888;">Выберите предмет, чтобы загрузить данные.</p>
         </div>
     </div>
 
     <!-- Виджет 2: Последние добавленные достижения -->
-    <div id="widget-latest-achievements" class="widget">
+    <!-- <div id="widget-latest-achievements" class="widget">
         <h3>Последние добавленные достижения</h3>
         <div class="widget-content-placeholder">
-            <!-- Сюда JS вставит список -->
+           
         </div>
-    </div>
+    </div> -->
 
     <!-- Виджет 3: Сравнительный анализ групп (гистограмма) -->
-    <div id="widget-group-comparison-teacher" class="widget">
+    <!-- <div id="widget-group-comparison-teacher" class="widget">
         <h3>Сравнительный анализ групп</h3>
         <div class="widget-content-placeholder">
-            <!-- Сюда JS вставит canvas с графиком -->
+          
         </div>
-    </div>
+    </div> -->
 
 </div>
 
 <!-- Стили, специфичные для этой панели -->
 <style>
+    
+
+ /* Стили для аккордеона групп */
+    /* --- Стили для Электронного журнала (АКТУАЛЬНЫЕ) --- */
+
+/* Контейнер списка групп с ограниченной высотой и скроллом */
+.journal-groups-list {
+    max-height: 60vh; /* Высота на 60% экрана */
+    overflow-y: auto; /* Вертикальная прокрутка */
+    border: 1px solid #eee;
+    border-radius: 6px;
+    background: #fff;
+    padding-right: 2px; /* Чтобы скроллбар не перекрывал контент */
+}
+
+/* Красивый скроллбар (для Chrome/Safari) */
+.journal-groups-list::-webkit-scrollbar {
+    width: 6px;
+}
+.journal-groups-list::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+}
+
+/* Блок одной группы */
+.journal-group-item {
+    border-bottom: 1px solid #eee; /* Линия только снизу */
+    margin: 0;
+    border-radius: 0;
+}
+
+/* Заголовок группы (на который кликаем) */
+.journal-group-header {
+    background-color: #fff;
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: background-color 0.2s;
+}
+
+.journal-group-header:hover {
+    background-color: #f8f9fa;
+}
+
+/* Стрелочка */
+.journal-arrow {
+    transition: transform 0.3s;
+    color: #888;
+}
+
+.journal-group-item.open .journal-arrow {
+    transform: rotate(180deg);
+}
+
+/* Выпадающий список студентов */
+.journal-group-content {
+    display: none;
+    border-top: 1px solid #f0f0f0;
+    background-color: #fafafa; /* Слегка серый фон для списка студентов */
+}
+
+.journal-group-item.open .journal-group-content {
+    display: block;
+}
+
+/* Строка студента */
+.journal-student-row {
+    display: flex;
+    justify-content: space-between; /* Имя слева, ввод справа */
+    align-items: center;
+    padding: 8px 20px; /* Отступы по бокам побольше */
+    border-bottom: 1px solid #e9ecef;
+}
+
+.journal-student-row:last-child {
+    border-bottom: none;
+}
+
+/* Контейнер для поля ввода и кнопки */
+.mark-input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Поле ввода оценки */
+.mark-input {
+    width: 45px;
+    padding: 5px;
+    text-align: center;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.mark-input:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Стиль заблокированного поля (УСПЕШНО СОХРАНЕНО) */
+.mark-input:disabled {
+    background-color: #d4edda; /* Зеленоватый фон */
+    color: #155724; /* Темно-зеленый текст */
+    border-color: #c3e6cb;
+    font-weight: bold;
+}
+
+/* Кнопка галочки */
+.save-mark-btn {
+    background: none;
+    border: none;
+    color: #28a745; /* Зеленая галочка */
+    cursor: pointer;
+    font-size: 1.4rem;
+    padding: 0;
+    line-height: 1;
+    transition: transform 0.1s;
+}
+
+.save-mark-btn:active {
+    transform: scale(0.9);
+}
+
+/* Если поле заблокировано (сохранено), скрываем кнопку галочки */
+.mark-input:disabled ~ .save-mark-btn {
+    display: none;
+}
+
+/* Текст "Загрузка..." */
+.loading-text {
+    padding: 15px;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-style: italic;
+}
+/* конец стилей для аккордиона групп*/
+
     .dashboard-grid-teacher {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
