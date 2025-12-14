@@ -18,31 +18,89 @@ async function initDashboardDispatcher() {
 
         // 2. Выполняем общие для всех ролей действия:
         document.getElementById('user-fullname').textContent = currentUser.fullName;
-        document.getElementById('logout-button').addEventListener('click', logout);
+        
+        const logoutBtn = document.getElementById('logout-button');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
 
-        // --- ИЗМЕНЕНИЕ 1: Добавляем обработчики для модального окна ---
+        // --- ЛОГИКА ДЛЯ КНОПКИ ГЛОБАЛЬНОГО PDF ОТЧЕТА ---
+        const pdfBtn = document.getElementById('global-report-btn');
+        
+        // Кнопка есть в HTML, но мы должны показать её только Админу или Ректору
+        if (pdfBtn) {
+            if (currentUser.roleName === 'RECTORATE_STAFF') {
+                pdfBtn.style.display = 'inline-block'; // Показываем кнопку
+
+                pdfBtn.addEventListener('click', async () => {
+                    const originalText = pdfBtn.textContent;
+                    try {
+                        // Блокируем кнопку на время загрузки
+                        pdfBtn.disabled = true;
+                        pdfBtn.textContent = 'Загрузка...';
+                        pdfBtn.style.cursor = 'wait';
+
+                        const token = localStorage.getItem('authToken');
+                        // API_BASE_URL определен в api.js
+                        const response = await fetch(`${API_BASE_URL}/analytics/global-report`, {
+                            method: 'GET',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+
+                        if (!response.ok) throw new Error('Ошибка при генерации отчета');
+
+                        // Скачивание файла
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Global_Report_${new Date().toISOString().slice(0,10)}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+
+                    } catch (e) {
+                        console.error(e);
+                        alert('Не удалось скачать глобальный отчет. Подробности в консоли.');
+                    } finally {
+                        // Возвращаем кнопку в исходное состояние
+                        pdfBtn.disabled = false;
+                        pdfBtn.textContent = originalText;
+                        pdfBtn.style.cursor = 'pointer';
+                    }
+                });
+            } else {
+                // Скрываем кнопку от студентов, преподавателей и сотрудников деканата
+                pdfBtn.style.display = 'none';
+            }
+        }
+        // -----------------------------------------------------
+
+        // --- ОБРАБОТЧИКИ МОДАЛЬНОГО ОКНА ПРОФИЛЯ ---
         const profileModal = document.getElementById('profile-modal');
         const profileButton = document.getElementById('profile-button');
         const closeModalBtn = document.getElementById('close-modal-btn');
 
-        // Открытие модального окна
-        profileButton.addEventListener('click', () => {
-            showProfileModal(currentUser); // Показываем окно с уже загруженными данными
-        });
+        if (profileButton) {
+            profileButton.addEventListener('click', () => {
+                showProfileModal(currentUser); // Показываем окно с уже загруженными данными
+            });
+        }
 
-        // Закрытие модального окна
-        closeModalBtn.addEventListener('click', () => {
-            profileModal.style.display = 'none';
-        });
-
-        // Закрытие по клику на оверлей
-        profileModal.addEventListener('click', (event) => {
-            if (event.target === profileModal) {
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', () => {
                 profileModal.style.display = 'none';
-            }
-        });
-        // --- Конец изменений 1 ---
+            });
+        }
 
+        if (profileModal) {
+            profileModal.addEventListener('click', (event) => {
+                if (event.target === profileModal) {
+                    profileModal.style.display = 'none';
+                }
+            });
+        }
 
         // 3. В зависимости от роли, загружаем соответствующий скрипт
         switch (currentUser.roleName) {
@@ -67,11 +125,14 @@ async function initDashboardDispatcher() {
         }
     } catch (error) {
         console.error("Ошибка инициализации панели:", error);
-        logout();
+        // Если ошибка авторизации (403/401), выкидываем на логин
+        if (error.message && (error.message.includes('403') || error.message.includes('401'))) {
+            logout();
+        }
     }
 }
 
-// --- ИЗМЕНЕНИЕ 2: Новая функция для отображения данных профиля ---
+// --- Функция для отображения данных профиля ---
 function showProfileModal(user) {
     const profileDetails = document.getElementById('profile-details');
     const modal = document.getElementById('profile-modal');
@@ -102,8 +163,6 @@ function showProfileModal(user) {
     profileDetails.innerHTML = detailsHtml;
     modal.style.display = 'flex'; // Показываем модальное окно
 }
-// --- Конец изменений 2 ---
-
 
 function loadScript(src, callback) {
     const script = document.createElement('script');

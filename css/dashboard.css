@@ -403,3 +403,26 @@ main#dashboard-content {
 .toast.success { background-color: #28a745; }
 .toast.error   { background-color: #dc3545; }
 .toast.info    { background-color: #17a2b8; }
+
+/* Кнопка глобального отчета */
+.pdf-global-btn {
+    background-color: #28a745; /* Зеленый цвет */
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-right: 15px; /* Отступ от имени */
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.pdf-global-btn:hover {
+    background-color: #218838;
+}
+
+.pdf-global-btn:disabled {
+    background-color: #6c757d;
+    cursor: wait;
+}
