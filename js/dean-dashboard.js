@@ -8,33 +8,36 @@ let dynamicsChart = null;
 let distributionChart = null;
 let contributionChart = null;
 let allStudentsData = [];
+let achievementTypes = []; 
 
 /**
  * Главная функция, которую будет вызывать наш диспетчер dashboard.js
  */
 async function initDeanDashboard() {
     try {
-        // 1. Загрузка HTML-шаблона
+        // 1. Загрузка типов достижений
+        await loadAchievementTypes();
+
+        // 2. Загрузка HTML-шаблона
         const response = await fetch('templates/dean-dashboard.html');
         if (!response.ok) throw new Error('Не удалось загрузить шаблон для деканата');
         const templateHtml = await response.text();
 
-        
-        // 2. Вставка HTML в страницу
+        // 3. Вставка HTML в страницу
         document.getElementById('dashboard-content').innerHTML = templateHtml;
-        setupRankingFiltersAndSearch();
 
-        // 3. Установка названия факультета
+        // === ИСПРАВЛЕНИЕ: ВЫЗЫВАЕМ НАСТРОЙКУ ОБРАБОТЧИКОВ ===
+        setupRankingFiltersAndSearch();
+        // ===================================================
+
+        // 4. Установка названия факультета
         const facultyNameSpan = document.getElementById('dean-faculty-name');
         if (facultyNameSpan && currentUser && currentUser.facultyName) {
             facultyNameSpan.textContent = currentUser.facultyName;
         }
 
-    
-
         // 5. Первоначальная загрузка данных
         await loadDeanWidgetsData();
-        
 
     } catch (error) {
         console.error("Ошибка при инициализации панели деканата:", error);
@@ -98,6 +101,15 @@ async function loadDeanWidgetsData() {
     }
 }
 
+async function loadAchievementTypes() {
+    try {
+        achievementTypes = await request('/achievements/types', 'GET');
+    } catch (error) {
+        console.error("Не удалось загрузить типы достижений:", error);
+        showToast("Ошибка загрузки типов достижений", "error");
+    }
+}
+
 // --- ФУНКЦИИ РЕНДЕРИНГА ---
 
 /**
@@ -107,31 +119,61 @@ async function loadDeanWidgetsData() {
  * 1. Рендеринг таблицы "Общий рейтинг" (ИСПРАВЛЕННАЯ ВЕРСИЯ)
  */
 // Новая функция для настройки всех фильтров и поиска
+// Новая функция для настройки всех фильтров и поиска (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 function setupRankingFiltersAndSearch() {
-    const courseFilter = document.getElementById('course-filter');
-    const searchInput = document.getElementById('student-search-input');
-    const container = document.getElementById('ranking-accordion-container');
+    // Важно: мы вешаем обработчики на dashboard-content, который существует всегда,
+    // а не на элементы, которые могут быть перерисованы.
+    const dashboardContent = document.getElementById('dashboard-content');
+    if (!dashboardContent) return;
 
-    if (courseFilter) {
+    dashboardContent.addEventListener('change', (event) => {
         // При смене курса - перезагружаем данные с сервера
-        courseFilter.addEventListener('change', loadDeanWidgetsData);
-    }
-    if (searchInput) {
+        if (event.target.id === 'course-filter') {
+            loadDeanWidgetsData();
+        }
+    });
+
+    dashboardContent.addEventListener('input', (event) => {
         // При вводе в поиск - фильтруем уже загруженные данные
-        searchInput.addEventListener('input', renderRankingAccordion);
-    }
-    if (container) {
+        if (event.target.id === 'student-search-input') {
+            renderRankingAccordion();
+        }
+    });
+
+    dashboardContent.addEventListener('click', async (event) => {
+        const target = event.target;
+        
         // Обработчик кликов для открытия/закрытия аккордеона
-        container.addEventListener('click', (event) => {
-            const header = event.target.closest('.accordion-header');
-            if (header) {
-                header.parentElement.classList.toggle('open');
+        const header = target.closest('.accordion-header');
+        if (header) {
+            header.parentElement.classList.toggle('open');
+            return; // Прекращаем выполнение, чтобы не сработали другие клики
+        }
+
+        // Клик по кнопке "+"
+        if (target.classList.contains('add-achievement-btn')) {
+            const studentId = target.dataset.studentId;
+            const plusBtn = target;
+            const selectEl = document.querySelector(`.achievement-select[data-student-id="${studentId}"]`);
+            
+            if (plusBtn && selectEl) {
+                plusBtn.style.display = 'none';
+                selectEl.style.display = 'inline-block';
+                selectEl.focus();
             }
-        });
-    }
+        }
+    });
+
+    // Нажатие Enter на селекторе
+    dashboardContent.addEventListener('keypress', async (event) => {
+        if (event.target.classList.contains('achievement-select') && event.key === 'Enter') {
+            await addAchievementForStudent(event.target);
+        }
+    });
 }
 
 
+// Новая главная функция для отрисовки аккордеона
 // Новая главная функция для отрисовки аккордеона
 function renderRankingAccordion() {
     const container = document.getElementById('ranking-accordion-container');
@@ -165,17 +207,30 @@ function renderRankingAccordion() {
     for (const groupName in groups) {
         const students = groups[groupName];
         
-        let studentsHtml = students.map((student, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${student.fullName}</td>
-                <td>${student.academicScore.toFixed(2)}</td>
-                <td>${student.extracurricularScore.toFixed(2)}</td>
-                <td>${student.absencePenalty.toFixed(2)}</td>
-                <td><strong>${student.totalScore.toFixed(2)}</strong></td>
-            </tr>
-        `).join('');
+        let studentsHtml = students.map((student, index) => {
+            let achievementOptions = achievementTypes.map(type => `<option value="${type.id}">${type.name}</option>`).join('');
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${student.fullName}</td>
+                    <td>${student.academicScore.toFixed(2)}</td>
+                    <td>${student.extracurricularScore.toFixed(2)}</td>
+                    <td>${student.absencePenalty.toFixed(2)}</td>
+                    <td><strong>${student.totalScore.toFixed(2)}</strong></td>
+                    <td style="text-align: center;">
+                        <span class="add-achievement-container" data-container-id="${student.studentId}">
+                            <span class="add-achievement-btn" data-student-id="${student.studentId}">+</span>
+                            <select class="achievement-select" data-student-id="${student.studentId}">
+                                <option value="" disabled selected>Выберите достижение...</option>
+                                ${achievementOptions}
+                            </select>
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
 
+        // === ИСПРАВЛЕНИЕ ЗДЕСЬ ===
         accordionHtml += `
             <div class="accordion-item">
                 <div class="accordion-header">
@@ -192,6 +247,7 @@ function renderRankingAccordion() {
                                     <th>Внеуч. балл</th>
                                     <th>Штраф</th>
                                     <th>Итого</th>
+                                    <th>Добавить дост.</th>
                                 </tr>
                             </thead>
                             <tbody>${studentsHtml}</tbody>
@@ -203,6 +259,37 @@ function renderRankingAccordion() {
     }
     container.innerHTML = accordionHtml;
 }
+
+async function addAchievementForStudent(selectElement) {
+    const studentId = selectElement.dataset.studentId;
+    const typeId = selectElement.value;
+
+    if (!typeId) {
+        showToast("Пожалуйста, выберите достижение", "error");
+        return;
+    }
+
+    selectElement.disabled = true; // Блокируем селектор на время запроса
+
+    try {
+        await request('/achievements', 'POST', { studentId, typeId });
+        showToast("Достижение успешно добавлено!", "success");
+        
+        // Заменяем селектор на иконку галочки
+        const container = document.querySelector(`.add-achievement-container[data-container-id="${studentId}"]`);
+        if(container) container.innerHTML = '<span class="achievement-added-icon">✓</span>';
+        
+        // Перезагружаем все данные, чтобы рейтинг обновился
+        await loadDeanWidgetsData();
+
+    } catch (error) {
+        console.error("Ошибка при добавлении достижения:", error);
+        showToast(error.message || "Не удалось добавить достижение", "error");
+        selectElement.disabled = false; // Разблокируем в случае ошибки
+    }
+}
+
+
 
 
 /**
@@ -383,4 +470,24 @@ function showSkeletons() {
     if (contributionChart) {
         contributionChart.innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
     }
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    // Показать "тост"
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Скрыть и удалить "тост" через 5 секунд
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.addEventListener('transitionend', () => toast.remove());
+    }, 5000);
 }

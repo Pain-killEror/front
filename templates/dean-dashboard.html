@@ -65,6 +65,28 @@
 <!-- Стили, специфичные для этой панели -->
 <style>
 
+        /* Стили для кнопки и селектора достижений */
+    .add-achievement-btn {
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #28a745;
+        transition: transform 0.2s;
+    }
+    .add-achievement-btn:hover {
+        transform: scale(1.2);
+    }
+    .achievement-select {
+        display: none; /* Скрыт по умолчанию */
+    }
+    .achievement-select.active {
+        display: inline-block; /* Показываем */
+    }
+    .achievement-added-icon {
+        font-size: 1.5rem;
+        color: #20c997;
+    }
+    /* конец стилей для кнопки и селектора достижений */
+
         /* Стили для панели управления рейтингом */
     .ranking-controls {
         display: flex;
