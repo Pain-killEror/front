@@ -12,25 +12,32 @@ let contributionChart = null;
  * Главная функция, которую будет вызывать наш диспетчер dashboard.js
  */
 async function initDeanDashboard() {
-    // 1. Загружаем HTML-шаблон для панели деканата
     try {
+        // 1. Загрузка HTML-шаблона
         const response = await fetch('templates/dean-dashboard.html');
         if (!response.ok) throw new Error('Не удалось загрузить шаблон для деканата');
         const templateHtml = await response.text();
 
-        // 2. Вставляем HTML в главный контейнер
+        // 2. Вставка HTML в страницу
         document.getElementById('dashboard-content').innerHTML = templateHtml;
 
-        // 3. Назначаем обработчики событий на фильтры
-        document.getElementById('apply-dean-filters-btn').addEventListener('click', loadDeanWidgetsData);
+        // 3. Установка названия факультета
+        const facultyNameSpan = document.getElementById('dean-faculty-name');
+        if (facultyNameSpan && currentUser && currentUser.facultyName) {
+            facultyNameSpan.textContent = currentUser.facultyName;
+        }
 
-        // 4. Запускаем первоначальную загрузку данных для всех виджетов
+    
+
+        // 5. Первоначальная загрузка данных
         await loadDeanWidgetsData();
 
     } catch (error) {
         console.error("Ошибка при инициализации панели деканата:", error);
-        document.getElementById('dashboard-content').innerHTML =
-            '<div class="widget"><p>Произошла ошибка при загрузке интерфейса деканата.</p></div>';
+        const contentDiv = document.getElementById('dashboard-content');
+        if(contentDiv) {
+            contentDiv.innerHTML = '<div class="widget"><p>Произошла ошибка при загрузке интерфейса деканата.</p></div>';
+        }
     }
 }
 
@@ -43,24 +50,20 @@ async function loadDeanWidgetsData() {
     // Показываем скелетоны/заглушки на время загрузки
     showSkeletons();
 
-    // Собираем значения из фильтров
-    const facultyId = document.getElementById('faculty-filter').value || null;
-    const formationYear = document.getElementById('year-filter').value || null;
-    const groupId = document.getElementById('group-filter').value || null;
-
     // Готовим тело запроса
     const requestBody = {
         filters: {
             // Используем ID факультета текущего пользователя (сотрудника деканата)
             // currentUser - глобальная переменная из dashboard.js
             facultyId: currentUser.facultyId,
-            // Дополнительные фильтры с панели
-            formationYear: formationYear ? parseInt(formationYear) : null,
-            groupId: groupId ? parseInt(groupId) : null
+
+            // === ИСПРАВЛЕНИЕ: Фильтры удалены, поэтому всегда отправляем null ===
+            formationYear: null,
+            groupId: null
+            // =================================================================
         },
         widgetIds: [
             "studentRankingList",
-            "averageScoreDynamics",
             "performanceDistribution",
             "contributionAnalysis"
         ]
@@ -71,16 +74,18 @@ async function loadDeanWidgetsData() {
         const analyticsData = await request('/analytics/query', 'POST', requestBody);
 
         // Отрисовываем каждый виджет, передавая ему соответствующие данные
+        // Обратите внимание, что renderStudentRankingTable теперь ожидает объект целиком
         renderStudentRankingTable(analyticsData.widgets.studentRankingList.data);
-        renderAverageScoreDynamicsChart(analyticsData.widgets.averageScoreDynamics.data);
         renderPerformanceDistributionChart(analyticsData.widgets.performanceDistribution.data);
         renderContributionChart(analyticsData.widgets.contributionAnalysis.data);
 
     } catch (error) {
         console.error("Ошибка при загрузке данных для виджетов деканата:", error);
         // В случае ошибки показываем сообщение
-        document.getElementById('dashboard-grid-dean').innerHTML =
-            '<div class="widget"><p>Не удалось загрузить данные для панели.</p></div>';
+        const grid = document.getElementById('dashboard-grid-dean');
+        if (grid) {
+            grid.innerHTML = '<div class="widget"><p>Не удалось загрузить данные для панели.</p></div>';
+        }
     }
 }
 
@@ -92,12 +97,22 @@ async function loadDeanWidgetsData() {
 /**
  * 1. Рендеринг таблицы "Общий рейтинг" (ИСПРАВЛЕННАЯ ВЕРСИЯ)
  */
-function renderStudentRankingTable(data) {
+function renderStudentRankingTable(widgetData) {
     const container = document.getElementById('widget-ranking-table');
     if (!container) return;
-
     const tbody = container.querySelector('tbody');
-    
+
+    // === ИСПРАВЛЕНИЕ ===
+    // Проверяем, пришли данные в обертке (как объект) или как массив.
+    // Бэкенд отправляет структуру { data: [...], availableSemesters: [...] }
+    let data = [];
+    if (widgetData && Array.isArray(widgetData.data)) {
+        data = widgetData.data;
+    } else if (Array.isArray(widgetData)) {
+        data = widgetData;
+    }
+    // ===================
+
     if (!data || data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7">Нет данных для отображения.</td></tr>';
         return;
@@ -122,45 +137,6 @@ function renderStudentRankingTable(data) {
     tbody.innerHTML = rowsHtml.join('');
 }
 
-/**
- * 2. Рендеринг графика "Динамика среднего балла"
- */
-function renderAverageScoreDynamicsChart(data) {
-    const container = document.getElementById('widget-dynamics-chart');
-    if (!container) return;
-
-    // Удаляем заглушку и вставляем canvas
-    container.innerHTML = '<canvas id="dynamicsChartCanvas"></canvas>';
-    const ctx = document.getElementById('dynamicsChartCanvas').getContext('2d');
-
-    if (dynamicsChart) {
-        dynamicsChart.destroy(); // Уничтожаем старый график перед отрисовкой нового
-    }
-
-    dynamicsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.map(item => `Семестр ${item.semester}`),
-            datasets: [{
-                label: 'Средний балл',
-                data: data.map(item => item.averageMark),
-                borderColor: 'rgba(54, 162, 235, 1)',
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                fill: true,
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-}
 
 /**
  * 3. Рендеринг гистограммы "Распределение по успеваемости"
@@ -205,23 +181,46 @@ function renderPerformanceDistributionChart(data) {
 }
 
 /**
- * 4. Рендеринг диаграммы "Вклад внеучебной деятельности"
+ * 4. Рендеринг диаграммы "Вклад в рейтинг" (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
  */
 function renderContributionChart(data) {
-    const container = document.getElementById('widget-contribution-chart');
-    if (!container) return;
+    const widgetContainer = document.getElementById('widget-contribution-chart');
+    if (!widgetContainer) return;
 
-    container.innerHTML = '<canvas id="contributionChartCanvas"></canvas>';
+    if (!data || data.length === 0) {
+        widgetContainer.innerHTML = '<h3>Вклад в рейтинг</h3><p>Нет данных для отображения.</p>';
+        return;
+    }
+
+    widgetContainer.innerHTML = `
+        <h3>Вклад в рейтинг</h3>
+        <div class="chart-with-legend-container">
+            <div id="contribution-chart-canvas-container">
+                <canvas id="contributionChartCanvas"></canvas>
+            </div>
+            <div id="contribution-chart-legend" class="custom-legend"></div>
+        </div>
+    `;
+
+    const legendContainer = document.getElementById('contribution-chart-legend');
     const ctx = document.getElementById('contributionChartCanvas').getContext('2d');
 
     if (contributionChart) {
         contributionChart.destroy();
     }
 
+    const categoryTranslations = {
+        'ACADEMIC': 'Учебная деятельность',
+        'SCIENCE': 'Наука',
+        'SOCIAL': 'Общественная',
+        'SPORTS': 'Спорт',
+        'CULTURE': 'Культура'
+    };
+
     contributionChart = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: data.map(item => item.category), // e.g., "ACADEMIC", "SCIENCE", "SPORTS"
+            labels: data.map(item => categoryTranslations[item.category] || item.category),
             datasets: [{
                 label: 'Суммарные баллы',
                 data: data.map(item => item.totalPoints),
@@ -231,13 +230,43 @@ function renderContributionChart(data) {
                     'rgba(255, 99, 132, 0.8)',
                     'rgba(255, 206, 86, 0.8)',
                     'rgba(153, 102, 255, 0.8)'
-                ]
+                ],
+                borderWidth: 0
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.parsed || 0;
+                            // === ИЗМЕНЕНИЕ 1: Округляем число во всплывающей подсказке ===
+                            return `${label}: ${Math.round(value)} баллов`;
+                        }
+                    }
+                }
+            }
         }
+    });
+
+    legendContainer.innerHTML = '';
+    data.forEach((item, index) => {
+        const translatedLabel = categoryTranslations[item.category] || item.category;
+        const value = item.totalPoints;
+        const color = contributionChart.data.datasets[0].backgroundColor[index];
+
+        // === ИЗМЕНЕНИЕ 2: Округляем число в легенде ===
+        const legendItemHtml = `
+            <div class="legend-item">
+                <span class="legend-color-box" style="background-color: ${color};"></span>
+                <span>${translatedLabel}: <strong>${Math.round(value)}</strong> баллов</span>
+            </div>
+        `;
+        legendContainer.innerHTML += legendItemHtml;
     });
 }
 
@@ -247,7 +276,6 @@ function renderContributionChart(data) {
 function showSkeletons() {
     document.getElementById('widget-ranking-table').querySelector('tbody').innerHTML =
         '<tr><td colspan="7">Загрузка данных...</td></tr>';
-    document.getElementById('widget-dynamics-chart').innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
     document.getElementById('widget-distribution-chart').innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
     document.getElementById('widget-contribution-chart').innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
 }

@@ -5,27 +5,11 @@
 -->
 
 <!-- Панель с фильтрами -->
-<div class="dashboard-filters">
-    <!-- Фильтры пока не заполняются данными, это можно добавить позже -->
-    <label for="faculty-filter">Факультет:</label>
-    <!-- ID факультета будет подставляться из данных пользователя, это поле можно сделать disabled -->
-    <select id="faculty-filter" disabled>
-        <option value="">-- Мой факультет --</option>
-    </select>
-
-    <label for="year-filter">Год набора:</label>
-    <select id="year-filter">
-        <option value="">-- Все года --</option>
-        <!-- Сюда можно динамически загружать года -->
-    </select>
-
-    <label for="group-filter">Группа:</label>
-    <select id="group-filter">
-        <option value="">-- Все группы --</option>
-        <!-- Сюда можно динамически загружать группы -->
-    </select>
-
-    <button id="apply-dean-filters-btn">Применить</button>
+<div class="dashboard-filters" style="display: flex; align-items: center; gap: 1rem;">
+    <!-- Просто надпись с названием факультета -->
+    <h2 style="margin: 0; font-size: 1.5rem; color: #333;">
+        <span id="dean-faculty-name" style="color: #007bff;">Загрузка...</span>
+    </h2>
 </div>
 
 <!-- Сетка для размещения виджетов -->
@@ -54,11 +38,7 @@
         </div>
     </div>
 
-    <!-- Виджет 2: Динамика среднего балла (линейный график) -->
-    <div id="widget-dynamics-chart" class="widget">
-        <h3>Динамика среднего балла</h3>
-        <!-- Сюда JS вставит canvas с графиком -->
-    </div>
+    
 
     <!-- Виджет 3: Распределение по успеваемости (гистограмма) -->
     <div id="widget-distribution-chart" class="widget">
@@ -67,15 +47,58 @@
     </div>
 
     <!-- Виджет 4: Вклад в рейтинг (круговая диаграмма) -->
-    <div id="widget-contribution-chart" class="widget">
-        <h3>Вклад в рейтинг</h3>
+    <!-- Виджет 4: Вклад в рейтинг (круговая диаграмма) -->
+<div id="widget-contribution-chart" class="widget">
+    <h3>Вклад в рейтинг</h3>
+    <!-- Новый контейнер для графика и легенды -->
+    <div class="chart-with-legend-container">
         <!-- Сюда JS вставит canvas с графиком -->
+        <div id="contribution-chart-canvas-container"></div>
+        <!-- Сюда JS вставит нашу кастомную легенду -->
+        <div id="contribution-chart-legend" class="custom-legend"></div>
     </div>
+</div>
 
 </div>
 
 <!-- Стили, специфичные для этой панели -->
 <style>
+
+    /* для внеучебной активности */
+    
+        .chart-with-legend-container {
+        display: flex;
+        align-items: center;
+        gap: 2rem; /* Расстояние между графиком и легендой */
+    }
+
+    #contribution-chart-canvas-container {
+        position: relative;
+        height: 250px;
+        width: 250px;
+    }
+
+    .custom-legend {
+        display: flex;
+        flex-direction: column; /* Элементы в столбик */
+        gap: 0.8rem; /* Расстояние между элементами легенды */
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+
+    .legend-color-box {
+        width: 15px;
+        height: 15px;
+        margin-right: 10px;
+        border-radius: 3px;
+    }
+
+    /* конец стилей для внеучебной активности */
+
     .dashboard-grid-dean {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
