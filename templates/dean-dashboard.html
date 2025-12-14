@@ -5,11 +5,15 @@
 -->
 
 <!-- Панель с фильтрами -->
-<div class="dashboard-filters" style="display: flex; align-items: center; gap: 1rem;">
-    <!-- Просто надпись с названием факультета -->
+<div class="dashboard-filters" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
     <h2 style="margin: 0; font-size: 1.5rem; color: #333;">
         <span id="dean-faculty-name" style="color: #007bff;">Загрузка...</span>
     </h2>
+    
+    <!-- Кнопка скачивания отчета -->
+    <button id="dean-report-btn" class="export-btn btn-pdf" style="padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 5px;">
+        PDF
+    </button>
 </div>
 
 <!-- Сетка для размещения виджетов -->
@@ -64,6 +68,29 @@
 
 <!-- Стили, специфичные для этой панели -->
 <style>
+
+    /* стили для pdf кнопки */
+
+    .export-btn {
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+    font-size: 0.9rem;
+    transition: opacity 0.2s;
+    }
+    .btn-pdf {
+        background-color: #86dc9aff; /* цвет, как у PDF */
+    }
+    .export-btn:hover {
+        opacity: 0.9;
+    }
+    .export-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+
+    /* конец стилей для pdf кнопки */
 
         /* Стили для кнопки и селектора достижений */
     .add-achievement-btn {

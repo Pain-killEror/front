@@ -36,6 +36,11 @@ async function initDeanDashboard() {
             facultyNameSpan.textContent = currentUser.facultyName;
         }
 
+        const reportBtn = document.getElementById('dean-report-btn');
+        if (reportBtn) {
+            reportBtn.addEventListener('click', downloadDeanReport);
+        }
+
         // 5. Первоначальная загрузка данных
         await loadDeanWidgetsData();
 
@@ -490,4 +495,69 @@ function showToast(message, type = 'info') {
         toast.classList.remove('show');
         toast.addEventListener('transitionend', () => toast.remove());
     }, 5000);
+}
+
+// === ЛОГИКА ОТЧЕТА ===
+
+async function downloadDeanReport() {
+    const btn = document.getElementById('dean-report-btn');
+    const originalText = btn.textContent;
+    const selectedCourse = document.getElementById('course-filter').value;
+
+    // Вычисляем год набора
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const academicYearStart = (currentMonth >= 9) ? currentYear : currentYear - 1;
+    const formationYear = academicYearStart - (selectedCourse - 1);
+
+    // === ИСПРАВЛЕНИЕ ЗДЕСЬ ===
+    // Проверяем, есть ли facultyId в объекте currentUser.
+    // Если его нет, попробуем взять из localStorage (иногда данные сохраняются там при логине)
+    // или выведем ошибку ДО отправки запроса.
+    
+    let facultyId = currentUser.facultyId;
+    
+    if (!facultyId) {
+        console.error("Ошибка: ID факультета не найден в объекте currentUser", currentUser);
+        alert("Не удалось определить ваш факультет. Попробуйте перезайти в систему.");
+        return; 
+    }
+    // ===========================
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Генерация...';
+
+        // Используем проверенный facultyId
+        const response = await fetch(`${API_BASE_URL}/analytics/dean-report?facultyId=${facultyId}&formationYear=${formationYear}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+        });
+
+        if (!response.ok) {
+            // Пытаемся прочитать текст ошибки от сервера, если есть
+            const errorText = await response.text(); 
+            throw new Error(`Ошибка сервера: ${response.status} ${errorText}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Otchet_Kurs_${selectedCourse}_${new Date().toLocaleDateString()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error("Ошибка при скачивании отчета:", error);
+        alert('Не удалось скачать отчет. Подробности в консоли.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
 }
