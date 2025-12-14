@@ -17,26 +17,27 @@
 
     <!-- Виджет 1: Общий рейтинг студентов (таблица) -->
     <div id="widget-ranking-table" class="widget full-width">
+    
+    <!-- Панель с фильтрами и поиском -->
+    <div class="ranking-controls">
         <h3>Общий рейтинг студентов</h3>
-        <div class="table-wrapper">
-            <table id="ranking-table-dean">
-                <thead>
-                    <tr>
-                        <th>Место</th>
-                        <th>ФИО</th>
-                        <th>Группа</th>
-                        <th>Академ. балл</th>
-                        <th>Внеуч. балл</th>
-                        <th>Штраф (пропуски)</th>
-                        <th>Итоговый балл</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Сюда JS вставит строки с данными -->
-                </tbody>
-            </table>
+        <div class="filters">
+            <label for="course-filter">Курс:</label>
+            <select id="course-filter">
+                <option value="1">1 курс</option>
+                <option value="2">2 курс</option>
+                <option value="3">3 курс</option>
+                <option value="4">4 курс</option>
+            </select>
+            <input type="text" id="student-search-input" placeholder="Поиск по группе или студенту...">
         </div>
     </div>
+
+    <!-- Контейнер, куда JS будет вставлять аккордеон с группами -->
+    <div id="ranking-accordion-container">
+        <!-- Загрузка... -->
+    </div>
+</div>
 
     
 
@@ -63,6 +64,70 @@
 
 <!-- Стили, специфичные для этой панели -->
 <style>
+
+        /* Стили для панели управления рейтингом */
+    .ranking-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .ranking-controls .filters {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+    .ranking-controls input, .ranking-controls select {
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    /* Стили для аккордеона */
+    .accordion-item .accordion-header {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border: 1px solid #eee;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: bold;
+    }
+    .accordion-item .accordion-header:hover {
+        background-color: #e9ecef;
+    }
+    .accordion-item .accordion-header::after {
+        content: '▼';
+        font-size: 0.8em;
+        transition: transform 0.3s ease;
+    }
+    .accordion-item.open .accordion-header::after {
+        transform: rotate(180deg);
+    }
+
+    .accordion-item .accordion-content {
+        display: none; /* Скрыто по умолчанию */
+        padding: 0;
+        border: 1px solid #eee;
+        border-top: none;
+    }
+    .accordion-item.open .accordion-content {
+        display: block; /* Показываем при классе 'open' */
+    }
+    /* Стили для вложенной таблицы студентов */
+    .student-table-wrapper {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+     #ranking-accordion-container {
+        max-height: 500px; /* Вы можете изменить это значение, например, на 60vh */
+        overflow-y: auto;  /* Добавляет вертикальный скролл, если контент не помещается */
+        border: 1px solid #eee; /* Добавляет рамку для визуального отделения */
+    }
+
+     /* конец стилей для панели управления рейтингом */
 
     /* для внеучебной активности */
     

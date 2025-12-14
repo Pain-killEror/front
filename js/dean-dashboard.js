@@ -7,6 +7,7 @@
 let dynamicsChart = null;
 let distributionChart = null;
 let contributionChart = null;
+let allStudentsData = [];
 
 /**
  * Главная функция, которую будет вызывать наш диспетчер dashboard.js
@@ -18,8 +19,10 @@ async function initDeanDashboard() {
         if (!response.ok) throw new Error('Не удалось загрузить шаблон для деканата');
         const templateHtml = await response.text();
 
+        
         // 2. Вставка HTML в страницу
         document.getElementById('dashboard-content').innerHTML = templateHtml;
+        setupRankingFiltersAndSearch();
 
         // 3. Установка названия факультета
         const facultyNameSpan = document.getElementById('dean-faculty-name');
@@ -31,6 +34,7 @@ async function initDeanDashboard() {
 
         // 5. Первоначальная загрузка данных
         await loadDeanWidgetsData();
+        
 
     } catch (error) {
         console.error("Ошибка при инициализации панели деканата:", error);
@@ -50,17 +54,21 @@ async function loadDeanWidgetsData() {
     // Показываем скелетоны/заглушки на время загрузки
     showSkeletons();
 
+    const selectedCourse = document.getElementById('course-filter').value;
+    
+    // Вычисляем год набора на основе выбранного курса
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // getMonth() от 0 до 11
+    const academicYearStart = (currentMonth >= 9) ? currentYear : currentYear - 1;
+    const formationYear = academicYearStart - (selectedCourse - 1);
+
     // Готовим тело запроса
     const requestBody = {
         filters: {
-            // Используем ID факультета текущего пользователя (сотрудника деканата)
-            // currentUser - глобальная переменная из dashboard.js
             facultyId: currentUser.facultyId,
-
-            // === ИСПРАВЛЕНИЕ: Фильтры удалены, поэтому всегда отправляем null ===
-            formationYear: null,
+            formationYear: formationYear, // Отправляем вычисленный год набора
             groupId: null
-            // =================================================================
         },
         widgetIds: [
             "studentRankingList",
@@ -72,10 +80,11 @@ async function loadDeanWidgetsData() {
     try {
         // Отправляем единый запрос на бэкенд
         const analyticsData = await request('/analytics/query', 'POST', requestBody);
+        allStudentsData = analyticsData.widgets.studentRankingList.data.data || [];
+        renderRankingAccordion();
 
         // Отрисовываем каждый виджет, передавая ему соответствующие данные
         // Обратите внимание, что renderStudentRankingTable теперь ожидает объект целиком
-        renderStudentRankingTable(analyticsData.widgets.studentRankingList.data);
         renderPerformanceDistributionChart(analyticsData.widgets.performanceDistribution.data);
         renderContributionChart(analyticsData.widgets.contributionAnalysis.data);
 
@@ -97,44 +106,102 @@ async function loadDeanWidgetsData() {
 /**
  * 1. Рендеринг таблицы "Общий рейтинг" (ИСПРАВЛЕННАЯ ВЕРСИЯ)
  */
-function renderStudentRankingTable(widgetData) {
-    const container = document.getElementById('widget-ranking-table');
-    if (!container) return;
-    const tbody = container.querySelector('tbody');
+// Новая функция для настройки всех фильтров и поиска
+function setupRankingFiltersAndSearch() {
+    const courseFilter = document.getElementById('course-filter');
+    const searchInput = document.getElementById('student-search-input');
+    const container = document.getElementById('ranking-accordion-container');
 
-    // === ИСПРАВЛЕНИЕ ===
-    // Проверяем, пришли данные в обертке (как объект) или как массив.
-    // Бэкенд отправляет структуру { data: [...], availableSemesters: [...] }
-    let data = [];
-    if (widgetData && Array.isArray(widgetData.data)) {
-        data = widgetData.data;
-    } else if (Array.isArray(widgetData)) {
-        data = widgetData;
+    if (courseFilter) {
+        // При смене курса - перезагружаем данные с сервера
+        courseFilter.addEventListener('change', loadDeanWidgetsData);
     }
-    // ===================
+    if (searchInput) {
+        // При вводе в поиск - фильтруем уже загруженные данные
+        searchInput.addEventListener('input', renderRankingAccordion);
+    }
+    if (container) {
+        // Обработчик кликов для открытия/закрытия аккордеона
+        container.addEventListener('click', (event) => {
+            const header = event.target.closest('.accordion-header');
+            if (header) {
+                header.parentElement.classList.toggle('open');
+            }
+        });
+    }
+}
 
-    if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7">Нет данных для отображения.</td></tr>';
+
+// Новая главная функция для отрисовки аккордеона
+function renderRankingAccordion() {
+    const container = document.getElementById('ranking-accordion-container');
+    const searchValue = document.getElementById('student-search-input').value.toLowerCase();
+    if (!container) return;
+
+    // 1. Фильтруем студентов по поисковому запросу
+    const filteredStudents = allStudentsData.filter(student => {
+        const studentName = student.fullName.toLowerCase();
+        const groupName = (student.groupName || '').toLowerCase();
+        return studentName.includes(searchValue) || groupName.includes(searchValue);
+    });
+
+    // 2. Группируем отфильтрованных студентов по группам
+    const groups = filteredStudents.reduce((acc, student) => {
+        const groupName = student.groupName || 'Без группы';
+        if (!acc[groupName]) {
+            acc[groupName] = [];
+        }
+        acc[groupName].push(student);
+        return acc;
+    }, {});
+
+    if (Object.keys(groups).length === 0) {
+        container.innerHTML = '<p style="text-align:center; padding: 2rem;">Студенты не найдены.</p>';
         return;
     }
 
-    // Шаг 1: Создаем массив HTML-строк для каждой строки таблицы
-    const rowsHtml = data.map((student, index) => {
-        return `
+    // 3. Создаем HTML для аккордеона
+    let accordionHtml = '';
+    for (const groupName in groups) {
+        const students = groups[groupName];
+        
+        let studentsHtml = students.map((student, index) => `
             <tr>
                 <td>${index + 1}</td>
                 <td>${student.fullName}</td>
-                <td>${student.groupName || 'N/A'}</td>
                 <td>${student.academicScore.toFixed(2)}</td>
                 <td>${student.extracurricularScore.toFixed(2)}</td>
                 <td>${student.absencePenalty.toFixed(2)}</td>
                 <td><strong>${student.totalScore.toFixed(2)}</strong></td>
             </tr>
-        `;
-    });
+        `).join('');
 
-    // Шаг 2: Объединяем все строки в одну большую строку и вставляем в DOM один раз
-    tbody.innerHTML = rowsHtml.join('');
+        accordionHtml += `
+            <div class="accordion-item">
+                <div class="accordion-header">
+                    <span>Группа: ${groupName} (${students.length} чел.)</span>
+                </div>
+                <div class="accordion-content">
+                    <div class="student-table-wrapper">
+                        <table id="ranking-table-dean">
+                           <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>ФИО</th>
+                                    <th>Академ. балл</th>
+                                    <th>Внеуч. балл</th>
+                                    <th>Штраф</th>
+                                    <th>Итого</th>
+                                </tr>
+                            </thead>
+                            <tbody>${studentsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    container.innerHTML = accordionHtml;
 }
 
 
@@ -300,8 +367,20 @@ function renderContributionChart(data) {
  * Вспомогательная функция для отображения заглушек во время загрузки данных
  */
 function showSkeletons() {
-    document.getElementById('widget-ranking-table').querySelector('tbody').innerHTML =
-        '<tr><td colspan="7">Загрузка данных...</td></tr>';
-    document.getElementById('widget-distribution-chart').innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
-    document.getElementById('widget-contribution-chart').innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
+    // Показываем заглушку для нового аккордеона
+    const accordionContainer = document.getElementById('ranking-accordion-container');
+    if (accordionContainer) {
+        accordionContainer.innerHTML = '<p style="text-align:center; padding: 2rem; color: #888;">Загрузка данных...</p>';
+    }
+
+    // Заглушки для остальных виджетов
+    const distributionChart = document.getElementById('widget-distribution-chart');
+    if (distributionChart) {
+        distributionChart.innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
+    }
+
+    const contributionChart = document.getElementById('widget-contribution-chart');
+    if (contributionChart) {
+        contributionChart.innerHTML = '<div class="skeleton" style="height: 300px;"></div>';
+    }
 }
