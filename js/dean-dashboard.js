@@ -139,7 +139,7 @@ function renderStudentRankingTable(widgetData) {
 
 
 /**
- * 3. Рендеринг гистограммы "Распределение по успеваемости"
+ * 3. Рендеринг гистограммы "Распределение по успеваемости" (ФИНАЛЬНАЯ ВЕРСИЯ)
  */
 function renderPerformanceDistributionChart(data) {
     const container = document.getElementById('widget-distribution-chart');
@@ -155,7 +155,7 @@ function renderPerformanceDistributionChart(data) {
     distributionChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: data.map(item => item.label), // e.g., "9-10", "8-9"
+            labels: data.map(item => item.label),
             datasets: [{
                 label: 'Количество студентов',
                 data: data.map(item => item.count),
@@ -172,8 +172,34 @@ function renderPerformanceDistributionChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+                title: {
+                    display: true,
+                    text: 'Распределение по успеваемости',
+                    font: { size: 16 },
+                    padding: { bottom: 20 }
+                },
                 legend: {
                     display: false
+                }
+            },
+            scales: {
+                y: {
+                    // === ИСПРАВЛЕНИЕ: Используем логарифмическую шкалу ===
+                    type: 'logarithmic',
+                    min: 1, // Логарифмическая шкала не может начинаться с 0
+                    max: 10000,
+                    ticks: {
+                        callback: function(value, index, ticks) {
+                            // Список желаемых меток. Добавили 1, так как шкала начинается с него.
+                            const desiredTicks = [1, 10, 100, 1000, 5000, 10000];
+                            if (desiredTicks.includes(value)) {
+                                return value.toLocaleString('ru-RU');
+                            }
+                            // Скрываем все остальные автоматически сгенерированные метки
+                            return null;
+                        }
+                    }
+                    // =======================================================
                 }
             }
         }
